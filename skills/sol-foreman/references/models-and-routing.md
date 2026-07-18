@@ -17,11 +17,11 @@ Do not infer access from a launch article. Rollouts, plan tiers, regions, authen
 
 OpenAI's GPT-5.6 launch defines durable capability tiers:
 
-| Seat | Current Codex slug on this machine | Positioning | Route here |
-|---|---|---|---|
-| Sol | `gpt-5.6-sol` | Flagship frontier agentic coding model | Ambiguous, multi-stage, security-sensitive, integration-heavy, or final judgment |
-| Terra | `gpt-5.6-terra` | Balanced everyday agentic coding model | Well-specified substantive implementation, tests, refactors, research, and review |
-| Luna | `gpt-5.6-luna` | Fast and affordable agentic coding model | Clear repeatable tasks, reconnaissance, extraction, and mechanical edits |
+| Seat | Current Codex slug on this machine | Dated API price / MTok in-out | Positioning | Route here |
+|---|---|---:|---|---|
+| Sol | `gpt-5.6-sol` | $5 / $30 | Flagship frontier agentic coding model | Ambiguous, multi-stage, security-sensitive, integration-heavy, or final judgment |
+| Terra | `gpt-5.6-terra` | $2.50 / $15 | Balanced everyday agentic coding model | Well-specified substantive implementation, tests, refactors, research, and review |
+| Luna | `gpt-5.6-luna` | $1 / $6 | Fast and affordable agentic coding model | Clear repeatable tasks, reconnaissance, extraction, and mechanical edits |
 
 Quality-first defaults:
 
@@ -36,13 +36,15 @@ Official source: https://openai.com/index/gpt-5-6/
 
 ## Claude snapshot
 
-| Seat | Claude CLI model | Positioning | Route here |
-|---|---|---|---|
-| Fable 5 | `fable` or `claude-fable-5` | Anthropic's most capable widely released model for long-horizon agents | Exceptional frontier need only, behind the explicit Fable permission gate |
-| Opus 4.8 | `opus` or `claude-opus-4-8` | Complex agentic coding and enterprise work | Frontier cross-family build or verification when Fable is not justified |
-| Sonnet 5 | `sonnet` or `claude-sonnet-5` | Best combination of speed and intelligence | Default Claude workhorse |
-| Haiku 4.5 | `haiku` or `claude-haiku-4-5` | Fastest, near-frontier model | Scanning, extraction, mechanical work |
-| Mythos 5 | `claude-mythos-5` | Limited defensive-cyber release with Fable-class capability | Never route without explicit request, verified access, and authorized defensive scope |
+| Seat | Claude CLI model | Dated API price / MTok in-out | Positioning | Route here |
+|---|---|---:|---|---|
+| Fable 5 | `fable` or `claude-fable-5` | $10 / $50 | Anthropic's most capable widely released model for long-horizon agents | Exceptional frontier need only, behind the explicit Fable permission gate |
+| Opus 4.8 | `opus` or `claude-opus-4-8` | $5 / $25 | Complex agentic coding and enterprise work | Frontier cross-family build or verification when Fable is not justified |
+| Sonnet 5 | `sonnet` or `claude-sonnet-5` | $3 / $15 | Best combination of speed and intelligence | Default Claude workhorse |
+| Haiku 4.5 | `haiku` or `claude-haiku-4-5` | $1 / $5 | Fastest, near-frontier model | Scanning, extraction, mechanical work |
+| Mythos 5 | `claude-mythos-5` | $10 / $50 | Limited defensive-cyber release with Fable-class capability | Never route without explicit request, verified access, and authorized defensive scope |
+
+Prices above are the official API list-price snapshot on the review date. Sonnet 5 had temporary introductory pricing through 2026-08-31. Subscription credits and usage limits do not map directly to API token prices; probe the user's billing mode and never promise savings from this table alone.
 
 Claude routing defaults:
 
