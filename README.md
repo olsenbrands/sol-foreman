@@ -18,17 +18,18 @@ The rule is simple: save usage only among models that clear the quality bar. If 
 
 Ask Codex:
 
-    Use $skill-installer to install https://github.com/olsenbrands/sol-foreman/tree/main/skills/sol-foreman globally.
+    Use $skill-installer to install https://github.com/olsenbrands/sol-foreman/tree/v0.1.0/skills/sol-foreman globally.
 
 Or run the built-in installer directly on macOS/Linux:
 
     python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/install-skill-from-github.py" \
       --repo olsenbrands/sol-foreman \
-      --path skills/sol-foreman
+      --path skills/sol-foreman \
+      --ref v0.1.0
 
 On Windows:
 
-    py "%USERPROFILE%\.codex\skills\.system\skill-installer\scripts\install-skill-from-github.py" --repo olsenbrands/sol-foreman --path skills/sol-foreman
+    py "%USERPROFILE%\.codex\skills\.system\skill-installer\scripts\install-skill-from-github.py" --repo olsenbrands/sol-foreman --path skills/sol-foreman --ref v0.1.0
 
 Start a fresh Codex session after installation so the new skill is discoverable.
 
