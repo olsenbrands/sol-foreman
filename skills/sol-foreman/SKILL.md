@@ -29,7 +29,7 @@ Do not use agents as a substitute for understanding the task.
 
 ### 2. Probe the available crew
 
-Run `scripts/probe_capabilities.py` once per session and read [models-and-routing.md](references/models-and-routing.md) when selecting seats.
+Run `python3 scripts/probe_capabilities.py` once per session (`py` on Windows) and read [models-and-routing.md](references/models-and-routing.md) when selecting seats.
 
 Classify the usable lanes:
 
