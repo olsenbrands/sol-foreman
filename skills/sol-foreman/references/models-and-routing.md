@@ -4,7 +4,7 @@ This snapshot was reviewed on **2026-07-18**. Treat it as a starting point, not 
 
 ## Refresh before routing
 
-1. Run `scripts/probe_capabilities.py --json`.
+1. Run `python3 scripts/probe_capabilities.py --json` (`py` on Windows).
 2. Prefer the account's current Codex model cache and CLI help over this snapshot for availability.
 3. If the cache is missing, stale, or contains unfamiliar models, check current official provider documentation.
 4. Verify any exact model/effort pair with a tiny non-destructive call before a long dispatch, after the user has consented to billable work.

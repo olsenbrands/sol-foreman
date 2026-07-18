@@ -27,7 +27,7 @@ Run metadata-only checks before any model call:
 
 Do not print credential files, environment variables, tokens, or provider configuration. Authentication presence does not establish model entitlement.
 
-Run `scripts/probe_capabilities.py` to inspect versions and the local Codex model cache without making billable model calls.
+Run `python3 scripts/probe_capabilities.py` (`py` on Windows) to inspect versions and the local Codex model cache without making billable model calls.
 
 ## Consent
 
