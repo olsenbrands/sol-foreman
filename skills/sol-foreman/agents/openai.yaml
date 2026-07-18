@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sol Foreman"
+  short_description: "Route and verify work across Codex and Claude"
+  default_prompt: "Use $sol-foreman to plan, delegate, and independently verify this multi-step task."
