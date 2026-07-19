@@ -1,86 +1,40 @@
 # Native Codex subagents
 
-Use this lane when Codex exposes collaboration tools. A native subagent is another Codex thread managed by the parent runtime, not a shell subprocess.
+Use this lane when Codex exposes collaboration tools. A native child is a managed Codex thread, not a shell subprocess. Keep the parent responsible for coordination, model-evidence honesty, and final acceptance.
 
-## Lifecycle
+## Lifecycle and scope
 
-The exact names vary by surface. Use the available equivalents of:
+Use the available equivalents of spawn, message, follow-up, list, wait, and interrupt. Set a stable lowercase task name, one complete [task contract](task-contracts.md), and the narrowest useful conversation fork. Use no forked turns for blind verification when the ticket contains all necessary context.
 
-- spawn an agent with a stable task name, bounded message, and minimal context;
-- send a message to a running agent;
-- give an idle agent a follow-up task;
-- list agents and inspect state;
-- wait for mailbox updates or completion;
-- interrupt a turn when it must stop.
+Native children share the workspace. Treat edits as immediately visible and never assign overlapping write sets concurrently. Discover the active thread cap, retain capacity for the lead and verifier, keep default spawn depth at one, and forbid worker fan-out. Repeat authorization and scope fences in every ticket because inherited tool access is capability, not permission.
 
-Keep the parent responsible for coordination and acceptance.
+## Record native model evidence honestly
 
-## Spawn well
+Task names are bookkeeping only. Naming a child `terra_worker`, `sol-review`, or any other label does not select or change its model or effort.
 
-Set:
+Before dispatch:
 
-- a stable lowercase task name;
-- one complete ticket from [task-contracts.md](task-contracts.md);
-- the narrowest useful conversation fork.
+1. Inspect the active spawn schema and session/runtime information.
+2. Use a model/effort control only when that exact native surface exposes and accepts it; record `requested-pin`, not confirmation.
+3. When the child may inherit a parent/runtime seat but no per-child runtime identity is available, label it `native-inherited-unconfirmed`.
+4. Preserve `worker-self-report` only as the child's claim.
+5. Add `runtime-metadata-confirmed` only when approved runtime metadata identifies the child's actual model; include effort only if exposed.
+6. Use a model-pinned `codex exec` worker whenever exact seat control or evidence is required.
 
-Use no forked turns for independent blind verification when the ticket carries all required context. Use recent or full turns only when reconstructing the context would be error-prone and independence is not the goal.
+Do not abbreviate `native-inherited-unconfirmed` to a definitive model name. A parent model display, custom-agent file, accepted configuration, or task name can justify a request or inheritance hypothesis, not a claim that the child used that seat. See [models-and-routing.md](models-and-routing.md) for label meanings and precedence.
 
-Native children share the workspace. Treat all edits as immediately visible. Never assign overlapping write sets concurrently.
+## Supervise and verify
 
-## Respect runtime limits
+After spawning, record canonical agent identity, task, write set, route, evidence label, and attempt in the authorized ledger. Continue only disjoint lead work; send missing facts promptly but do not casually change scope mid-turn. Wait for required reports, inspect shared-tree changes and raw evidence, and reuse an idle child only when fresh-context independence is unnecessary. Interrupt only for scope breach, obsolete work, unsafe action, or clear hang.
 
-Discover the active thread cap instead of assuming one. Keep capacity for the lead and for a verifier. Default Codex configuration may allow more threads than the current product surface or team runtime.
-
-Keep default spawn depth at one. Workers do not spawn workers. Recursive fan-out makes cost, permissions, and partial failure harder to reason about.
-
-Subagents inherit important parent runtime conditions, including available tools and often sandbox or permission settings. Tool access is capability, not authorization; repeat the task's fence in the ticket.
-
-## Be honest about model control
-
-Some Codex surfaces support custom agent files or model settings; some collaboration tool schemas expose only task, message, and context. Before assigning a seat:
-
-1. Inspect the spawn tool schema and session model information.
-2. Pin model and effort only when the active surface exposes a supported control.
-3. If no control exists, label the child seat `inherited` or `unconfirmed`.
-4. Use a model-pinned `codex exec` worker when exact routing is necessary.
-
-Never infer that a task name such as `terra_worker` changed the model.
-
-## Supervise
-
-After spawning:
-
-1. Record the canonical agent identity and task in the ledger.
-2. Continue only disjoint lead work.
-3. Send missing facts promptly; do not change scope casually mid-turn.
-4. Wait for all required results before synthesis.
-5. Inspect the child's evidence and shared-tree changes.
-6. Reuse an idle child with a follow-up only when fresh-context independence is not required.
-7. Interrupt only for scope breach, obsolete work, unsafe action, or clear hang.
-
-Do not treat a completion notification as task success.
+Do not treat a completion notification as success. Verify product criteria from the candidate and audit orchestration criteria separately. Confirm a terminal state for every native child before final acceptance.
 
 ## Blind native verification
 
-Use a fresh child with:
-
-- the original user task verbatim;
-- the lead-authored acceptance criteria;
-- the candidate commit/diff or changed paths;
-- read-only instructions and explicit bans on edits or delegation;
-- required verdict format.
-
-Do not include the builder's rationale, summary, or claimed test results. If the native child necessarily inherits contaminating context, use an ephemeral Codex CLI or Claude CLI verifier instead.
+Give a fresh child the original user task, lead-authored product criteria, candidate commit/diff or changed paths, read-only/no-delegation instructions, and a verdict format. Do not provide builder rationale, summary, or claimed test results. If inherited context prevents meaningful blindness, use an ephemeral Codex CLI or Claude CLI verifier instead.
 
 ## Custom agent files
 
-Current Codex documentation supports personal custom agents under `~/.codex/agents/` and project agents under `.codex/agents/`. A TOML file can define:
-
-- `name`;
-- `description`;
-- `developer_instructions`;
-- optional `model`, `model_reasoning_effort`, `sandbox_mode`, and other supported config.
-
-Do not install or modify custom agents merely to finish one task. If a user wants durable role profiles, create them as a separate, explicit configuration change and verify that the active spawn surface can select them.
+Custom agent files can declare optional model and effort settings, but do not install or modify them merely to finish one task. Treat a selected profile setting as `requested-pin` until runtime metadata confirms use. If a user requests durable role profiles, make that a separate explicit configuration change and verify the active spawn surface can select it.
 
 Official source: https://learn.chatgpt.com/docs/agent-configuration/subagents

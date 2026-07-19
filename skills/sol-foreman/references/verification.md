@@ -8,7 +8,8 @@ Define proof before dispatch. Verification exists to test the user's goal, not t
 - [Map proof to criteria](#map-proof-to-criteria)
 - [Layer the checks](#layer-the-checks)
 - [Blind verification](#blind-verification)
-- [Mutation backstop](#mutation-backstop)
+- [Hardened Claude blind verifier](#hardened-claude-blind-verifier)
+- [Mutation and quarantine backstop](#mutation-and-quarantine-backstop)
 - [Parent review](#parent-review)
 - [Disagreement](#disagreement)
 - [Fix loop](#fix-loop)
@@ -63,9 +64,9 @@ A deterministic failure outranks a model verdict.
 Use a fresh agent or ephemeral CLI process. Give it only:
 
 - the original user request verbatim;
-- the lead-authored criteria;
+- the lead-authored **product** criteria it can observe;
 - baseline and candidate identifiers;
-- changed paths or diff;
+- changed product paths or product-only diff;
 - exact gates it must reproduce;
 - read-only constraints;
 - verdict format.
@@ -82,15 +83,111 @@ Ask the verifier to derive its own understanding of correctness before reading t
 
 Cross-family verification is preferred when it adds real independence. Use Claude to verify Codex work or a fresh Codex seat to verify Claude work. Do not spend cross-family usage on pure formatting or documentation unless risk warrants it.
 
-## Mutation backstop
+Keep product verification separate from orchestration audit. A verifier that
+cannot inspect `.foreman` cannot verify dispatch, ticket ownership, model
+selection, process closure, builder rationale, or lead conclusions. Mark those
+criteria `NOT OBSERVABLE` for that verifier and give them to a separate
+auditor with an explicitly authorized audit package, or retain them for lead
+review. Do not mix them into the product verdict.
+
+## Hardened Claude blind verifier
+
+Use this as the default when Claude verifies a candidate. Run it from a fresh
+temporary run directory, never from the source repository. Before dispatch,
+run `claude --help` and `claude --version`; retain the help/version evidence
+with the run.
+
+1. Create a fresh `RUN_DIR` outside the source tree. Materialize `CANDIDATE`
+   from an immutable candidate revision using an explicit allowlist of product
+   paths. Do not copy `.foreman`, tickets, reports, prompts, scratch files,
+   builder reasoning, lead conclusions, or source-tree unknown artifacts. If
+   an approved gate requires Git metadata, initialize and commit a disposable
+   candidate-only repository after materialization; never expose source `.git`.
+2. Give Claude only `CANDIDATE`, a product-only ticket, the product-only diff,
+   and exact non-mutating gates. Do not give it the source-repository path.
+3. Write `{"mcpServers":{}}` to `RUN_DIR/empty-mcp.json`. Write all verifier
+   output outside `CANDIDATE`.
+4. Fingerprint both the source tree and `CANDIDATE` before dispatch with the
+   bundled `scripts/fingerprint_tree.py --manifest`. It covers every product
+   entry's relative path, type, mode, link target when applicable, and SHA-256
+   content hash for regular files. It excludes `.git` metadata by default but
+   does not omit ignored, hidden, or untracked product files.
+5. Freeze both trees until their after-fingerprints are captured. Keep verifier
+   metadata, live ledger updates, streams, reports, caches, and temporary files
+   in `RUN_DIR`; copy approved evidence into the source tree only after the
+   comparisons finish.
+6. Substitute each `<exact-nonmutating-gate>` below with a known read/test
+   command. Route its caches, reports, and temporary output to `RUN_DIR`; do
+   not allow a gate that writes in `CANDIDATE`.
+
+    RUN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sol-foreman-verify.XXXXXX")"
+    CANDIDATE="$RUN_DIR/candidate"
+    MCP_CONFIG="$RUN_DIR/empty-mcp.json"
+    STREAM="$RUN_DIR/claude-stream.jsonl"
+    FINGERPRINT="<skill-root>/scripts/fingerprint_tree.py"
+    printf '%s\n' '{"mcpServers":{}}' > "$MCP_CONFIG"
+    python3 "$FINGERPRINT" --manifest "$SOURCE_REPO" > "$RUN_DIR/source-before.fingerprint"
+    python3 "$FINGERPRINT" --manifest "$CANDIDATE" > "$RUN_DIR/candidate-before.fingerprint"
+
+    set -o pipefail
+    (
+      cd "$CANDIDATE" || exit 1
+      claude -p \
+        --model <verified-model-or-alias> \
+        --effort <level> \
+        --safe-mode \
+        --strict-mcp-config \
+        --mcp-config "$MCP_CONFIG" \
+        --no-chrome \
+        --disable-slash-commands \
+        --no-session-persistence \
+        --permission-mode dontAsk \
+        --tools Read,Grep,Glob,Bash \
+        --allowed-tools Read Grep Glob \
+          'Bash(git status --porcelain=v1 -uall)' \
+          'Bash(git diff --no-ext-diff --binary)' \
+          'Bash(rg <approved-pattern> <approved-path>)' \
+          'Bash(<exact-nonmutating-gate>)' \
+        --disallowed-tools Edit,Write \
+        --output-format stream-json \
+        --include-hook-events \
+        --verbose \
+        < "$RUN_DIR/verifier-ticket.md"
+    ) | tee "$STREAM"
+    CLAUDE_EXIT=$?
+
+    python3 "$FINGERPRINT" --manifest "$SOURCE_REPO" > "$RUN_DIR/source-after.fingerprint"
+    python3 "$FINGERPRINT" --manifest "$CANDIDATE" > "$RUN_DIR/candidate-after.fingerprint"
+
+Record `CLAUDE_EXIT`, the exact command, and both fingerprint comparisons.
+Preserve `STREAM` as the raw event stream. Derive any human-readable summary
+separately and do not replace, compact, or overwrite the raw evidence.
+
+The named flags above are the current template, not a compatibility promise.
+If a named flag is unavailable, use `claude --help` to find an equivalent and
+record the discovered flag and version. Never guess or silently omit a
+protection. If no equivalent can disable ambient customization, restrict MCP
+to the empty config, disable Chrome and slash commands, deny edits/writes,
+prevent persistence, or preserve raw streaming evidence, return
+`NEEDS_CONTEXT` instead of issuing a blind verdict.
+
+## Mutation and quarantine backstop
 
 For a verifier that can execute shell commands:
 
-1. Start from a committed candidate or isolated copy.
-2. Record `git rev-parse HEAD` and `git status --porcelain`.
-3. Forbid edits, fixes, destructive git commands, deployment, and production access.
-4. Re-check HEAD and status after the verdict.
-5. Void the verdict if the verifier mutated the candidate.
+1. Compare both before/after fingerprints and retain the comparison result.
+   Also retain the raw stream and fail the run on a reported write attempt.
+2. Forbid edits, fixes, destructive git commands, deployment, production
+   access, and all paths outside `CANDIDATE` and `RUN_DIR`.
+3. Void the verdict on any source-tree or candidate fingerprint difference,
+   any reported write attempt, or an incomplete fingerprint. Do not retry the
+   verifier against the same surface.
+4. Preserve `RUN_DIR`, the raw stream, both fingerprints, and exit status for
+   diagnosis. If `CANDIDATE` changed, quarantine that isolated copy under
+   `RUN_DIR/quarantine/` with its evidence.
+5. Never automatically delete, clean, reset, or quarantine an artifact in the
+   user's source tree. Preserve unknown source-tree artifacts for diagnosis and
+   ask the owner to decide their disposition.
 
 Tool restrictions plus this check are defense in depth, not a perfect sandbox. Bash can write.
 
@@ -100,7 +197,9 @@ The lead must independently:
 
 1. Read the actual changed files or diff.
 2. Re-run the most important gates where practical.
-3. Reconcile worker and verifier evidence.
+3. Audit the complete raw event stream, including denied tool requests and
+   discrepancies omitted from the report, then reconcile worker and verifier
+   evidence.
 4. Check every original requirement, including negative constraints.
 5. Confirm the verification criteria themselves remain reasonable.
 6. Decide acceptance.

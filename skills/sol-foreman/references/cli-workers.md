@@ -15,19 +15,20 @@ Use external CLI processes for exact seat control, cross-family independence, or
 
 ## Safe probe
 
-Run metadata-only checks before any model call:
+Before any model call, resolve `<skill-root>` from the loaded `SKILL.md` and
+run the bundled sanitized probe:
 
-    command -v codex
-    codex --version
-    codex login status
+    python3 "<skill-root>/scripts/probe_capabilities.py" --json
 
-    command -v claude
-    claude --version
-    claude auth status
+Use only the probe's sanitized capability and authentication-presence fields
+in tickets, logs, and reports. Do not invoke `claude auth status` directly
+outside the sanitizer, and never print, redirect, or persist its raw response
+or any other raw Claude authentication response. Do not print credential files,
+environment variables, tokens, or provider configuration. Authentication
+presence does not establish model entitlement.
 
-Do not print credential files, environment variables, tokens, or provider configuration. Authentication presence does not establish model entitlement.
-
-Run `python3 scripts/probe_capabilities.py` (`py` on Windows) to inspect versions and the local Codex model cache without making billable model calls.
+The probe inspects versions and the local Codex model cache without making
+billable model calls. Use `py` in place of `python3` on Windows.
 
 ## Consent
 
@@ -42,6 +43,15 @@ Always obtain separate permission for Fable 5 unless the user already requested 
 Write each ticket to a file under `.foreman/scratch/` when repository writes are authorized, or to a secure temporary directory for read-only tasks. Pipe the file over stdin to avoid shell quoting corruption.
 
 Do not place secrets in tickets. Give file paths, not copied environment values.
+Do not repeat the Sol Foreman invocation or ask an execution worker to load the
+orchestration skill; pass the already-derived task contract directly. Mark the
+role as bounded execution and explicitly forbid loading orchestration skills,
+delegating, and reading outside the supplied repository/context paths.
+
+Before dispatch, create and verify every ticket, raw-stream, and final-report
+parent directory. A successful model turn followed by a missing output artifact
+is an evidence failure; preserve the parent execution trace and repair the
+collection path before accepting the task.
 
 ## Model-pinned Codex
 
@@ -65,13 +75,23 @@ Implementation:
       -C <absolute-repo-path> \
       - < <ticket-path>
 
-Use `--json` for event-stream monitoring or `--output-last-message <path>` for a clean report artifact. Do not use `--dangerously-bypass-approvals-and-sandbox` unless the user explicitly authorizes it and an external isolation boundary makes it safe.
+Use `--json` for event-stream monitoring and `--output-last-message <path>` for
+a clean report artifact. Preserve the JSONL stream as well as the report; do
+not make the summary the only durable evidence. When a pipeline writes the
+stream, enable `pipefail` and record the pipeline exit status. Do not use
+`--dangerously-bypass-approvals-and-sandbox` unless the user explicitly
+authorizes it and an external isolation boundary makes it safe.
 
 A read-only sandbox may block network access or commands that write caches. Distinguish sandbox limitations from product defects and record unrun checks.
 
 ## Claude CLI
 
-Fresh read-only analysis or verification:
+Run `claude --help` immediately before composing a Claude command and record
+the version with the verification evidence. Do not use the following general
+read-only command for blind verification; use the hardened template in
+[`verification.md`](verification.md#hardened-claude-blind-verifier) instead.
+
+Fresh non-blind read-only analysis:
 
     claude -p \
       --model <verified-model-or-alias> \
@@ -103,6 +123,12 @@ Use `--max-budget-usd` when API-key billing is active and a bounded amount is ap
 
 Removing Edit and Write tools does not make Bash read-only. Combine tool restrictions with a narrow working directory, explicit bans, before/after repository status, no production credentials, and preferably a read-only copy or worktree for sensitive verification.
 
+When a required Claude flag is absent, use `claude --help` to discover and
+record a supported equivalent before dispatch. Never silently drop a required
+isolation control. If the installed CLI has no equivalent for a required
+control, stop the blind-verification run as `NEEDS_CONTEXT` and use a
+separately authorized verification method.
+
 ## Process management
 
 For a long task:
@@ -114,6 +140,9 @@ For a long task:
 5. Check the exit code.
 6. Confirm the worker stopped before reconciling or retrying.
 7. Inspect repository status and artifacts.
+
+Treat a missing required report, truncated raw stream, or failed output-path
+write as `NEEDS FIX` even when the model process itself exited successfully.
 
 Do not use a fixed short timeout to classify a capable agent as absent. Do not abandon a background process.
 

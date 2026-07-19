@@ -12,6 +12,9 @@ The rule is simple: save usage only among models that clear the quality bar. If 
 - Verification criteria written before every assignment.
 - Disjoint write sets, bounded retries, durable ledgers, blind verification, and lead-owned acceptance.
 - Live capability probing so a dated model table never overrides the user's actual account.
+- Honest model evidence labels that distinguish a requested pin, worker self-report, native inheritance, and runtime metadata.
+- Privacy-safe capability discovery that redacts account identity fields.
+- Hardened Claude verification in an isolated product-only candidate with raw event evidence and before/after fingerprints.
 - A hard permission gate before Claude Fable 5 and its distinct expensive quota.
 
 ## Install
@@ -57,9 +60,20 @@ The bundled routing snapshot was reviewed on 2026-07-18. Sol Foreman runs a loca
 - Workers never spawn workers.
 - Parallel writers require provably disjoint file sets or isolation.
 - External CLI agents receive narrow permissions and context.
+- Blind product verifiers cannot read `.foreman` tickets, builder reports, or lead conclusions.
 - The lead inspects diffs, reruns gates, and owns final acceptance.
 - Fable 5 requires explicit permission unless the user already requested it in the current session.
 - Mythos is never used without explicit request, verified access, and authorized defensive-security scope.
+
+## Validate a source checkout
+
+Run the dependency-free tests and capability probe:
+
+    python3 -m unittest discover -s tests -v
+    python3 skills/sol-foreman/scripts/probe_capabilities.py --json
+
+The probe makes no billable model calls. OpenAI's bundled skill validator may
+require PyYAML in its Python environment.
 
 ## License
 

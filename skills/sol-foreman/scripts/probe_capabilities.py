@@ -16,6 +16,27 @@ from typing import Any
 
 
 CURRENT_CODEX_GENERATION = (5, 6)
+MAX_MODEL_SLUG_LENGTH = 128
+BUNDLED_CODEX_MODEL_SLUGS = frozenset(
+    {
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-5.6-luna",
+        "gpt-5.5",
+        "gpt-5.4",
+        "gpt-5.4-mini",
+        "gpt-5.3-codex-spark",
+        "codex-auto-review",
+    }
+)
+
+
+def safe_category(value: Any, aliases: dict[str, str]) -> str:
+    """Return a known category without exposing arbitrary provider output."""
+    if not isinstance(value, str):
+        return "unknown"
+    normalized = re.sub(r"[^a-z0-9]+", "-", value.strip().lower()).strip("-")
+    return aliases.get(normalized, "unknown")
 
 
 def run(command: list[str], timeout: int = 10) -> tuple[int, str]:
@@ -60,10 +81,40 @@ def claude_auth(executable: str) -> dict[str, Any]:
         lowered = output.lower()
         safe["logged_in"] = "logged in" in lowered or "authenticated" in lowered
         return safe
+    if not isinstance(payload, dict):
+        safe["error"] = "auth status response was not an object"
+        return safe
     safe["logged_in"] = bool(payload.get("loggedIn"))
-    safe["method"] = payload.get("authMethod", "unknown")
-    safe["provider"] = payload.get("apiProvider", "unknown")
-    safe["subscription_type"] = payload.get("subscriptionType", "unknown")
+    safe["method"] = safe_category(
+        payload.get("authMethod"),
+        {
+            "oauth": "oauth",
+            "api-key": "api-key",
+            "api-key-auth": "api-key",
+            "chatgpt": "chatgpt",
+            "claude-ai": "claude.ai",
+        },
+    )
+    safe["provider"] = safe_category(
+        payload.get("apiProvider"),
+        {
+            "anthropic": "anthropic",
+            "first-party": "first-party",
+            "firstparty": "first-party",
+            "bedrock": "bedrock",
+            "vertex": "vertex",
+        },
+    )
+    safe["subscription_type"] = safe_category(
+        payload.get("subscriptionType"),
+        {
+            "free": "free",
+            "pro": "pro",
+            "max": "max",
+            "team": "team",
+            "enterprise": "enterprise",
+        },
+    )
     return safe
 
 
@@ -89,17 +140,20 @@ def parse_generation(slug: str) -> tuple[int, int] | None:
     match = re.match(r"^gpt-(\d+)\.(\d+)", slug)
     if not match:
         return None
-    return int(match.group(1)), int(match.group(2))
+    try:
+        return int(match.group(1)), int(match.group(2))
+    except ValueError:
+        return None
 
 
-def cache_age_days(value: str | None) -> float | None:
-    if not value:
+def cache_age_days(value: Any) -> float | None:
+    if not isinstance(value, str) or not value:
         return None
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=timezone.utc)
-        return round((datetime.now(timezone.utc) - parsed).total_seconds() / 86400, 2)
+        return (datetime.now(timezone.utc) - parsed).total_seconds() / 86400
     except ValueError:
         return None
 
@@ -111,24 +165,47 @@ def read_codex_models(codex_home: Path) -> dict[str, Any]:
         return result
     try:
         payload = json.loads(cache_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, ValueError, RecursionError):
         result["error"] = "could not parse models_cache.json"
         return result
 
+    if not isinstance(payload, dict):
+        result["error"] = "unexpected models_cache.json shape"
+        return result
+
+    raw_models = payload.get("models", [])
+    if not isinstance(raw_models, list):
+        result["error"] = "unexpected models_cache.json shape"
+        return result
+
     fetched_at = payload.get("fetched_at")
-    result["fetched_at"] = fetched_at
+    result["fetched_at"] = fetched_at if isinstance(fetched_at, str) else None
     result["age_days"] = cache_age_days(fetched_at)
     result["client_version"] = payload.get("client_version")
     models: list[dict[str, Any]] = []
     newer: list[str] = []
-    for item in payload.get("models", []):
-        slug = item.get("slug")
-        if not slug:
+    unfamiliar: list[str] = []
+    for item in raw_models:
+        if not isinstance(item, dict):
             continue
+        slug = item.get("slug")
+        if (
+            not isinstance(slug, str)
+            or not slug
+            or len(slug) > MAX_MODEL_SLUG_LENGTH
+        ):
+            continue
+        raw_efforts = item.get("supported_reasoning_levels", [])
+        if not isinstance(raw_efforts, list):
+            raw_efforts = []
         efforts = [
             effort.get("effort")
-            for effort in item.get("supported_reasoning_levels", [])
-            if effort.get("effort")
+            for effort in raw_efforts
+            if (
+                isinstance(effort, dict)
+                and isinstance(effort.get("effort"), str)
+                and effort.get("effort")
+            )
         ]
         models.append(
             {
@@ -142,8 +219,11 @@ def read_codex_models(codex_home: Path) -> dict[str, Any]:
         generation = parse_generation(slug)
         if generation and generation > CURRENT_CODEX_GENERATION:
             newer.append(slug)
+        if slug not in BUNDLED_CODEX_MODEL_SLUGS:
+            unfamiliar.append(slug)
     result["models"] = models
     result["newer_than_bundled_snapshot"] = newer
+    result["unfamiliar_to_bundled_snapshot"] = unfamiliar
     return result
 
 
@@ -182,10 +262,20 @@ def collect(check_auth: bool) -> dict[str, Any]:
         model_cache = result["codex_cli"]["model_cache"]
         if not model_cache.get("exists"):
             result["warnings"].append("Codex model cache is missing; use current official docs and a consented tiny probe.")
-        elif model_cache.get("newer_than_bundled_snapshot"):
-            result["warnings"].append("A newer Codex generation than the bundled 2026-07-18 snapshot is present; refresh routing guidance.")
-        elif (model_cache.get("age_days") or 0) > 7:
-            result["warnings"].append("Codex model cache is older than seven days; refresh before asserting current availability.")
+        else:
+            if model_cache.get("error"):
+                result["warnings"].append("Codex model cache has an unexpected or unreadable shape; refresh before asserting current availability.")
+            if model_cache.get("newer_than_bundled_snapshot"):
+                result["warnings"].append("A newer Codex generation than the bundled 2026-07-18 snapshot is present; refresh routing guidance.")
+            if model_cache.get("unfamiliar_to_bundled_snapshot"):
+                result["warnings"].append("The Codex cache contains a model absent from the bundled 2026-07-18 snapshot; research it in current official sources before routing.")
+            age_days = model_cache.get("age_days")
+            if not model_cache.get("error") and age_days is None:
+                result["warnings"].append("Codex model cache timestamp is missing or invalid; refresh before asserting current availability.")
+            elif isinstance(age_days, (int, float)) and age_days < 0:
+                result["warnings"].append("Codex model cache timestamp is in the future; refresh before asserting current availability.")
+            elif isinstance(age_days, (int, float)) and age_days > 7:
+                result["warnings"].append("Codex model cache is older than seven days; refresh before asserting current availability.")
 
     if claude:
         result["claude_cli"].update({"path": claude, "version": version(claude)})

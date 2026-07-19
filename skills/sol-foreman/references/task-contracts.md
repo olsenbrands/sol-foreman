@@ -2,137 +2,152 @@
 
 ## Contents
 
+- [Derive criteria from the goal](#derive-criteria-from-the-goal)
 - [Ticket schema](#ticket-schema)
-- [Worker statuses](#worker-statuses)
-- [Verifier verdicts](#verifier-verdicts)
-- [Parallel write rules](#parallel-write-rules)
-- [Ledger](#ledger)
-- [Failure precedence](#failure-precedence)
-- [LOST workers](#lost-workers)
+- [Evidence and negative claims](#evidence-and-negative-claims)
+- [Statuses and verdicts](#statuses-and-verdicts)
+- [Parallel writes and ledger](#parallel-writes-and-ledger)
+- [Retries and process closure](#retries-and-process-closure)
+
+## Derive criteria from the goal
+
+Write criteria before delegation. Start with the user's requested outcome, users/inputs affected, required behavior, compatibility promises, and forbidden outcomes. Turn each promise into an independently observable criterion and a stated observation method.
+
+Do not derive criteria solely from existing tests, a worker plan, or the proposed algorithm. Tests are evidence, not the definition of success. Add a goal-derived behavioral criterion when tests omit an observable user promise. Do not make a criterion self-confirming by accepting the worker's own assertion as its only proof.
+
+Maintain two separate sets:
+
+| Set | Owner | Proves |
+|---|---|---|
+| Product criteria | Builder evidence plus a product verifier | The changed artifact satisfies the user's observable outcome. |
+| Orchestration criteria | Lead audit, not the product verifier | The correct ticket, route, evidence provenance, scope, retries, independent-review boundary, and process closure occurred. |
+
+Give a blind product verifier only product criteria it can inspect. Do not ask it to confirm hidden dispatch history or builder claims. The lead audits orchestration evidence separately and retains final acceptance.
 
 ## Ticket schema
 
-Give every worker one task:
+Give every worker one bounded ticket:
 
     TASK: <bounded objective>
+    GOAL: <user outcome and affected behavior>
     EXPECTED OUTCOME: <observable definition of done>
-    CONTEXT: <paths, baseline, relevant facts>
-    ACCEPTANCE CRITERIA:
-    - VC-1: <independently gradeable criterion>
-    - VC-2: <criterion>
+    CONTEXT: <paths, baseline, relevant supplied facts>
+    ROUTING: <residual judgment, quality floor, lane, requested seat/effort, evidence label, uncertainty>
+    PRODUCT ACCEPTANCE CRITERIA:
+    - PC-1: <goal-derived, independently observable promise>
+    - PC-2: <criterion>
+    ORCHESTRATION REPORT REQUIREMENTS:
+    - <evidence the worker must return; the lead owns audit and acceptance>
     VERIFICATION:
-    - <exact command or behavior check mapped to criteria>
+    - PC-1: <exact command, behavior check, or inspection and expected observation>
     EVIDENCE REQUIRED:
-    - <diff, file:line, command output, screenshot, artifact path>
+    - <approved raw stream/artifact path, diff, command result, timing/cost fields>
     CONSTRAINTS: <stack, compatibility, patterns, permissions>
     MUST DO: <non-negotiable requirements>
     MUST NOT: <scope fence, forbidden side effects, no subagent spawning>
     WRITE SET: <every permitted file/glob; omit only for read-only work>
-    STOP CONDITIONS: <when to report blocked rather than guess>
-    OUTPUT FORMAT: <status or verdict contract>
+    STOP CONDITIONS: <unsupported material fact => NEEDS_CONTEXT; environmental failure => BLOCKED with exact evidence>
+    OUTPUT FORMAT: <worker status and required report fields>
 
-Keep the original task and criteria inline. Pass bulk context by path. Do not paste long logs, histories, or source files into a ticket.
+Keep the original task and product criteria inline. Pass bulk context by path. State behavior and fences without needlessly prescribing an algorithm; when an algorithm is prescribed, say so in routing so residual judgment is assessed honestly.
 
-## Worker statuses
+Do not repeat `$sol-foreman`, tell an execution worker to use Sol Foreman, or
+include another orchestration-skill trigger in its ticket. The lead has already
+applied the skill. Repeating the trigger can make a repository-fenced worker
+load orchestration material outside its read scope. Give the worker the
+self-contained contract it needs instead. In `MUST NOT`, say that this is a
+bounded execution role and it must not load or apply orchestration skills,
+delegate, or read outside the supplied repository/context paths.
 
-Require the first line to be exactly one:
+The lead creates a companion orchestration contract before dispatch:
+
+    ORCHESTRATION ACCEPTANCE CRITERIA:
+    - OC-1: <declared lane, requested seat/effort, and evidence labels are recorded honestly>
+    - OC-2: <write-set isolation, baseline, and dispatch order are evidenced>
+    - OC-3: <product verification is blind to builder narrative where independence is required>
+    - OC-4: <all attempts, retries, final gates, and process closure are recorded>
+
+Do not make a worker or product verifier certify this orchestration contract. The lead verifies it from the ledger, raw evidence, and process state.
+
+## Evidence and negative claims
+
+Require evidence that another reader can inspect without trusting a summary:
+
+- exact command, working directory, start/end ISO 8601 timestamps, exit status, duration, and relevant environment/version;
+- changed paths, diff or artifact location, and exact test or behavior observation mapped to each product criterion;
+- approved raw event stream location and a redaction record when redaction is necessary; never persist secrets or raw account-auth payloads;
+- requested model/effort plus every applicable evidence label and source, runtime usage/tokens/cache fields, billing mode, and provider-reported cost when available;
+- baseline and final repository status, verifier before/after fingerprint where relevant, and explicit unknowns.
+
+Make negative claims observable and bounded. For example, support "no writes outside WRITE SET" with a baseline/final diff and status; support "no worker remains" with process/thread IDs and a terminal-state check; support "no artifact in locations X/Y" with the searched locations, command, time, and visibility limit. Never replace a bounded observation with an absolute claim that cannot be observed.
+
+Preserve raw evidence in an approved, access-controlled location. A report may summarize it, but the summary is not a substitute for the raw source. If cost, timing, runtime metadata, or a stream is unavailable, record `unavailable` with the reason rather than inventing it.
+
+## Statuses and verdicts
+
+Require the worker's first line to be exactly one:
 
 | Status | Meaning | Lead action |
 |---|---|---|
-| `DONE` | Work complete with required evidence | Inspect artifacts and enter verification |
-| `DONE_WITH_CONCERNS` | Complete, but risks or unverified items remain | Resolve every concern before acceptance |
-| `NEEDS_CONTEXT` | A specific missing fact prevents safe work | Supply it and re-dispatch the corrected ticket |
-| `BLOCKED` | Capability or external condition prevents completion | Classify and escalate; do not pretend |
+| `DONE` | Work is complete with required evidence. | Inspect artifacts and enter verification. |
+| `DONE_WITH_CONCERNS` | Work is complete but risks or unverified items remain. | Resolve every concern before acceptance. |
+| `NEEDS_CONTEXT` | A specific unsupported material fact prevents safe work. | Supply it and re-dispatch the corrected ticket. |
+| `BLOCKED` | A capability or environment prevents completion. | Record exact evidence, classify, and escalate; do not pretend. |
 
-Require a compact report after the status:
+Require the report after the status to include changed files, criteria-by-criterion observations, exact checks, raw evidence locations, model evidence labels, timing/cost/usage or `unavailable`, concerns, blockers, and repository status when it could write.
 
-- files changed and why;
-- exact commands run and results;
-- evidence per acceptance criterion;
-- concerns, unverified items, and blockers;
-- created artifact paths;
-- repository status if the worker could write.
-
-## Verifier verdicts
-
-Require the first line to be exactly one:
+Require a verifier's first line to be exactly one:
 
 | Verdict | Meaning |
 |---|---|
-| `PASS` | Every required criterion independently reproduced |
-| `FAIL` | At least one required criterion failed or lacks required evidence |
-| `PASS_WITH_NOTES` | All required criteria passed; notes are outside required scope |
+| `PASS` | Every assigned product criterion was independently reproduced. |
+| `FAIL` | A required criterion failed or lacks required evidence. |
+| `PASS_WITH_NOTES` | All assigned criteria passed; notes are outside required scope. |
 
-Do not mix worker statuses with verifier verdicts.
+Do not mix worker statuses with verifier verdicts. A product `PASS` does not certify orchestration; the lead determines final acceptance only after both proof sets pass.
 
-## Parallel write rules
+## Parallel writes and ledger
 
-Before a wave:
+Before a wave, compare WRITE SET values. Treat manifests, lockfiles, generated output, migrations, and shared fixtures as overlap. Serialize overlapping tickets or isolate them in worktrees/copies; tell every worker the filesystem is live and forbid out-of-set edits. Snapshot the baseline. Read-only lanes may overlap only when they do not share an exclusive environment.
 
-1. Compare WRITE SET values.
-2. Treat manifests, lockfiles, generated output, migrations, and shared fixtures as overlap.
-3. Serialize overlapping tickets or isolate them in separate worktrees/copies.
-4. Tell each worker the shared filesystem is live and forbid edits outside its set.
-5. Snapshot the baseline.
-
-Read-only lanes may run in parallel when they do not consume a required exclusive environment such as a shared test database.
-
-## Ledger
-
-Use `.foreman/ledger.md` for delegated repository-write runs when those writes are authorized:
+For authorized delegated repository-write runs, use `.foreman/ledger.md` with append-only entries:
 
     # Foreman Ledger — <task>
     BASELINE: <commit> | <status summary> | <timestamp>
 
     ## Plan
-    <task graph and dependencies>
+    <task graph, dependencies, final gates>
 
     ## Routing
-    <task -> lane -> model + effort -> reason>
+    <task | residual judgment | quality floor | lane | requested seat/effort | evidence labels | uncertainty | reason>
 
     ## Tasks
-    <id | lifecycle | write set | agent/process id | artifact path>
+    <id | lifecycle | write set | canonical process/thread identity | artifact path>
 
     ## Verification Contracts
-    <id | VC list | exact gates | evidence required>
+    <id | product criteria/gates | orchestration criteria/proof owner | evidence required>
 
     ## Attempts
-    <append-only: task | attempt | seat | ticket revision | result | evidence | time>
+    <append-only: task | attempt | ticket revision | seat evidence | command | start/end | exit | duration | usage/cost | result | evidence>
+
+    ## Process Closure
+    <task | process/thread identity | terminal observation | time | remaining-writer check>
 
     ## Decisions
-    <scope, consent, criteria corrections, seat changes, blockers>
+    <scope, consent, criteria corrections, route changes, uncertainty, blockers, acceptance>
 
-Use lifecycle states:
+Use `PENDING -> DISPATCHED -> REPORTED -> VERIFYING -> VERIFIED`, with `FAILED -> FIXING -> VERIFYING` for correction. Read-only advisory tasks may end `ACCEPTED`; solo work ends `SELF_REVIEWED`, never `VERIFIED`. For read-only work, keep equivalent state in the thread or permitted temporary location, not the target repository.
 
-    PENDING -> DISPATCHED -> REPORTED -> VERIFYING -> VERIFIED
-                                             \-> FAILED -> FIXING -> VERIFYING
+## Retries and process closure
 
-Read-only advisory tasks may end at `ACCEPTED`. Solo-mode work ends at `SELF_REVIEWED`, never `VERIFIED`.
+Append attempts and decisions; never rewrite history to make a run appear cleaner. Apply the first matching rule:
 
-Append attempts and decisions. Do not rewrite history to make a run look cleaner.
+1. Correct a bad ticket or unreasonable criterion and retry the same seat; record why it was not a model failure.
+2. After a first real failure, add missing context/evidence or raise effort.
+3. After a second real failure at one seat, escalate one capability class or let the lead take over.
+4. Stop and report evidence after failure at the highest suitable seat.
+5. Stop after two failed fix waves against the same findings.
 
-For read-only assignments, do not create a ledger in the target repository. Keep equivalent state in the thread or a permitted temporary directory.
+Do not retry identical input a third time or downgrade after evidence proves a stronger seat is required. When a worker stops reporting, confirm whether it is live; interrupt only when necessary; record `LOST`, identity, last artifact, and exit information; diff against baseline; reconcile partial edits; and never start a replacement while the old writer may still be live.
 
-## Failure precedence
-
-Apply the first matching rule:
-
-1. **Bad ticket or unreasonable criterion:** correct it and retry the same seat; record the correction.
-2. **First real failure at the seat:** add missing evidence or context, or raise effort.
-3. **Second real failure at the seat:** escalate one capability class or have the lead take over.
-4. **Failure at the highest suitable seat:** stop and report the evidence.
-5. **Two failed fix waves against the same findings:** stop, even if other seats remain.
-
-Do not retry identical input a third time. Do not downgrade a task after evidence proves it needs a stronger seat.
-
-## LOST workers
-
-If a worker or process stops reporting:
-
-1. Confirm whether it is still running.
-2. Interrupt or terminate it only when needed, then confirm terminal state.
-3. Record `LOST`, process/thread identity, last artifact, and exit information.
-4. Diff the tree against the baseline.
-5. Reconcile partial edits before any retry.
-
-Never launch a replacement while the old writer may still be live.
+Before final acceptance, record terminal state for every dispatched worker/process, inspect for remaining writers, reconcile partial artifacts, and re-run the full product and orchestration contracts.
