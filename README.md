@@ -1,80 +1,134 @@
 # Sol Foreman
 
-Sol Foreman turns the primary Codex agent into a quality-first foreman. It studies the full job, defines verification before delegation, routes bounded work to native Codex subagents or model-pinned Codex/Claude CLI workers, and accepts work only after the lead reviews real evidence.
+[![CI](https://github.com/olsenbrands/sol-foreman/actions/workflows/ci.yml/badge.svg)](https://github.com/olsenbrands/sol-foreman/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/olsenbrands/sol-foreman)](https://github.com/olsenbrands/sol-foreman/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+Sol Foreman is a quality-first Codex skill for delegating work to native Codex subagents, model-pinned Codex CLI workers, and Claude CLI agents. The primary agent defines observable completion criteria before dispatch, selects the strongest suitable worker, monitors progress, independently verifies returned work, and remains accountable for final acceptance.
 
 The rule is simple: save usage only among models that clear the quality bar. If quality is uncertain, route upward.
 
-## What it adds
+## Why use it
 
-- Native Codex subagent orchestration for integrated parallel work.
-- Optional model-pinned `codex exec` workers when an exact Codex seat and effort are required.
-- Optional Claude CLI workers for implementation or cross-family verification.
-- Verification criteria written before every assignment.
-- Disjoint write sets, bounded retries, durable ledgers, blind verification, and lead-owned acceptance.
-- Live capability probing so a dated model table never overrides the user's actual account.
-- Honest model evidence labels that distinguish a requested pin, worker self-report, native inheritance, and runtime metadata.
-- Privacy-safe capability discovery that redacts account identity fields.
-- Hardened Claude verification in an isolated product-only candidate with raw event evidence and before/after fingerprints.
-- A hard permission gate before Claude Fable 5 and its distinct expensive quota.
+- Define verification criteria before every assignment.
+- Route work by capability, risk, context, and required independence.
+- Keep parallel writers isolated or prove their write sets are disjoint.
+- Start long programs with a small independently verified pilot.
+- Count completed original program items instead of worker activity or slices.
+- Stop repeated same-cause failures, retry loops, and verification backlogs.
+- Require fresh assembled-candidate verification before declaring a program complete.
+- Keep the lead responsible for diff review, reproduced evidence, and final acceptance.
 
-## Install
+## Operating modes
 
-Ask Codex:
+| Mode | Use it for | Control level |
+|---|---|---|
+| Lightweight | One bounded, low-risk worker with no shared-write ambiguity | Inline criteria, one write set, lead verification, no program ledger |
+| Program | Multiple tickets or workers, long-running work, parallel writes, or material risk seams | Preflight tickets, append-only state, pilots, breakers, exact progress, independent verification |
 
-    Use $skill-installer to install https://github.com/olsenbrands/sol-foreman/tree/v0.1.1/skills/sol-foreman globally.
+## Worker lanes
 
-Or run the built-in installer directly on macOS/Linux:
-
-    python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/install-skill-from-github.py" \
-      --repo olsenbrands/sol-foreman \
-      --path skills/sol-foreman \
-      --ref v0.1.1
-
-On Windows:
-
-    py "%USERPROFILE%\.codex\skills\.system\skill-installer\scripts\install-skill-from-github.py" --repo olsenbrands/sol-foreman --path skills/sol-foreman --ref v0.1.1
-
-Start a fresh Codex session after installation so the new skill is discoverable.
-
-Invoke it explicitly:
-
-    Use $sol-foreman to plan, delegate, and independently verify this multi-stage task.
-
-## Capability lanes
-
-| Lane | Required | Exact model pinning |
+| Lane | Requirement | Exact model pinning |
 |---|---|---|
 | Native Codex subagents | A Codex surface with collaboration tools | Only when the active spawn surface exposes it |
 | Codex CLI workers | Installed and authenticated `codex` | Yes, through `codex exec -m` |
 | Claude CLI workers | Installed and authenticated `claude` | Yes, through `claude -p --model` |
 | Solo discipline | Codex only | Not applicable |
 
-All lanes degrade honestly. Missing collaboration or CLI access does not become fake verification.
+Missing collaboration or CLI access degrades honestly. It never becomes fake delegation or fake verification.
+
+## Requirements
+
+- Codex with global skill support.
+- Python 3.9 or newer for the dependency-free helper scripts.
+- Optional: Codex CLI or Claude Code CLI for model-pinned external workers.
+- Windows, macOS, or Linux.
+
+## Install
+
+Ask Codex:
+
+    Use $skill-installer to install https://github.com/olsenbrands/sol-foreman/tree/v0.2.0/skills/sol-foreman globally.
+
+Or use Codex's built-in installer on macOS or Linux:
+
+    python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/install-skill-from-github.py" \
+      --repo olsenbrands/sol-foreman \
+      --path skills/sol-foreman \
+      --ref v0.2.0
+
+On Windows:
+
+    py "%USERPROFILE%\.codex\skills\.system\skill-installer\scripts\install-skill-from-github.py" --repo olsenbrands/sol-foreman --path skills/sol-foreman --ref v0.2.0
+
+Start a fresh Codex session after installation so the skill catalog refreshes.
+
+## Use
+
+For a bounded task:
+
+    Use $sol-foreman to delegate this task to one suitable worker, define the verification criteria first, and independently verify the result.
+
+For a larger program:
+
+    Use $sol-foreman to understand this repository and tracker, define what done means, select a bounded pilot, route the right agents, monitor and verify their work, and continue only while accepted throughput supports the plan.
+
+Sol Foreman asks separately before using Claude Fable 5 unless the user already requested it in the current session.
+
+## Program safeguards
+
+- Original program item IDs are registered before dispatch.
+- Active and reported-but-unverified work both consume capacity and retain ownership.
+- Portable path identities reject repository-root, metadata, cache, symlink, junction, and external-path escapes.
+- Attempt three requires a materially different capability route or lead takeover.
+- Repeated same-cause failures require an exact report and substantive replan.
+- Any terminal parked unit halts replacement until report and replan.
+- Builders cannot certify their own work.
+- Final assembled verification cannot reuse builder or slice-verifier evidence.
+- Worker subprocesses must produce terminal receipts with confirmed process-tree closure.
 
 ## Model currency
 
-The bundled routing snapshot was reviewed on 2026-07-18. Sol Foreman runs a local, non-billable capability probe before routing and tells the lead to refresh official provider documentation when it detects a newer Codex generation, stale model cache, or unfamiliar model.
+The bundled routing snapshot was reviewed on 2026-07-19. Sol Foreman runs a local, non-billable capability probe before selecting pinned CLI workers and requests a documentation refresh when it detects a newer generation, stale cache, or unfamiliar model.
 
-## Safety
+## Privacy and safety
 
-- Workers never spawn workers.
-- Parallel writers require provably disjoint file sets or isolation.
-- External CLI agents receive narrow permissions and context.
-- Blind product verifiers cannot read `.foreman` tickets, builder reports, or lead conclusions.
-- The lead inspects diffs, reruns gates, and owns final acceptance.
-- Fable 5 requires explicit permission unless the user already requested it in the current session.
-- Mythos is never used without explicit request, verified access, and authorized defensive-security scope.
+- Tickets and evidence must not contain secrets, credential values, raw authentication responses, or unnecessary personal data.
+- The capability probe exposes only sanitized availability and authentication-presence fields.
+- External workers receive narrow context, permissions, and write authority.
+- Blind verifiers receive a product-only candidate without builder narratives or Foreman metadata.
+- Fable 5 requires explicit permission unless already requested.
+- Mythos is never selected without explicit request, verified access, and authorized defensive-security scope.
 
 ## Validate a source checkout
 
-Run the dependency-free tests and capability probe:
+Run the dependency-free suite:
 
     python3 -m unittest discover -s tests -v
+    python3 -m compileall -q skills tests
     python3 skills/sol-foreman/scripts/probe_capabilities.py --json
 
-The probe makes no billable model calls. OpenAI's bundled skill validator may
-require PyYAML in its Python environment.
+Use `py` instead of `python3` when that is the available Windows launcher. The capability probe makes no billable model calls.
+
+The suite includes ticket preflight, exact program state, full 45-item completion, retry and breaker behavior, candidate isolation, cross-platform path policy, process closure, privacy-safe capability probing, and deterministic fingerprints.
+
+## Known limits
+
+- Native subagent model identity is only as precise as the active collaboration surface exposes.
+- Subscription and model entitlement must be confirmed locally; bundled model guidance is not an entitlement claim.
+- Sol Foreman improves control and verification but cannot guarantee that every delegated task succeeds.
+
+## Project resources
+
+- Changes: [CHANGELOG.md](CHANGELOG.md)
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Security reporting: [SECURITY.md](SECURITY.md)
+- Skill entrypoint: [skills/sol-foreman/SKILL.md](skills/sol-foreman/SKILL.md)
+
+## Maintainer
+
+Created and maintained by [Jordan Olsen](https://dontsleeponai.com/).
 
 ## License
 
-MIT © Jordan Olsen
+MIT. See [LICENSE](LICENSE).

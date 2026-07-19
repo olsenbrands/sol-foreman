@@ -1,0 +1,25 @@
+name: Feature request
+description: Propose a focused improvement to Sol Foreman.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What orchestration or verification problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired observable outcome
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Suggested verification
+      description: How would we know the change works without weakening existing gates?
+    validations:
+      required: true

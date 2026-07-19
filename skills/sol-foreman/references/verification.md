@@ -7,6 +7,7 @@ Define proof before dispatch. Verification exists to test the user's goal, not t
 - [Write strong criteria](#write-strong-criteria)
 - [Map proof to criteria](#map-proof-to-criteria)
 - [Layer the checks](#layer-the-checks)
+- [Progressive program verification](#progressive-program-verification)
 - [Blind verification](#blind-verification)
 - [Hardened Claude blind verifier](#hardened-claude-blind-verifier)
 - [Mutation and quarantine backstop](#mutation-and-quarantine-backstop)
@@ -59,6 +60,17 @@ Run from cheapest and most deterministic to most judgment-heavy:
 
 A deterministic failure outranks a model verdict.
 
+## Progressive program verification
+
+Match verification scope to candidate maturity:
+
+1. At the early artifact checkpoint, inspect scope, architecture direction, and the smallest deterministic reproduction.
+2. At slice completion, run the slice's focused behavior and package gates and review its diff.
+3. At an integration seam, assemble accepted slices and run the boundary contract once.
+4. After the candidate is coherent, run full repository, customer-path, and blind-verifier gates.
+
+Do not repeatedly run the entire expensive suite on a slice that has not cleared its focused gate. Do not defer all review until dozens of slices have accumulated. A slice pass is provisional until the assembled candidate passes its original cross-slice criteria.
+
 ## Blind verification
 
 Use a fresh agent or ephemeral CLI process. Give it only:
@@ -97,12 +109,19 @@ temporary run directory, never from the source repository. Before dispatch,
 run `claude --help` and `claude --version`; retain the help/version evidence
 with the run.
 
-1. Create a fresh `RUN_DIR` outside the source tree. Materialize `CANDIDATE`
-   from an immutable candidate revision using an explicit allowlist of product
-   paths. Do not copy `.foreman`, tickets, reports, prompts, scratch files,
-   builder reasoning, lead conclusions, or source-tree unknown artifacts. If
-   an approved gate requires Git metadata, initialize and commit a disposable
-   candidate-only repository after materialization; never expose source `.git`.
+1. Create a fresh `RUN_DIR` outside the source tree. Write a JSON array of
+   explicit product paths, then materialize `CANDIDATE` with
+   `scripts/materialize_candidate.py`. The script rejects absolute/traversing
+   paths, overlapping entries, metadata/cache paths, escaping intermediate or
+   final symlinks, and special files. It never copies `.git`, `.foreman`, or
+   runtime caches, including through case aliases, symlinks, Windows junctions,
+   or other resolved filesystem aliases; aliases outside source are rejected. For
+   identical cross-platform behavior it always dereferences a safe internal
+   symlink and records that transformation. Treat the candidate as reduced
+   fidelity; use another isolation method when symlink identity is a
+   product criterion. If an approved gate requires Git
+   metadata, initialize and commit a disposable candidate-only repository
+   after materialization; never expose source `.git`.
 2. Give Claude only `CANDIDATE`, a product-only ticket, the product-only diff,
    and exact non-mutating gates. Do not give it the source-repository path.
 3. Write `{"mcpServers":{}}` to `RUN_DIR/empty-mcp.json`. Write all verifier
@@ -110,60 +129,37 @@ with the run.
 4. Fingerprint both the source tree and `CANDIDATE` before dispatch with the
    bundled `scripts/fingerprint_tree.py --manifest`. It covers every product
    entry's relative path, type, mode, link target when applicable, and SHA-256
-   content hash for regular files. It excludes `.git` metadata by default but
-   does not omit ignored, hidden, or untracked product files.
+   content hash for regular files. It excludes `.git`, `.foreman`, Python
+   bytecode, and common runtime caches at any depth by default but does not
+   omit other ignored, hidden, or untracked product files.
 5. Freeze both trees until their after-fingerprints are captured. Keep verifier
    metadata, live ledger updates, streams, reports, caches, and temporary files
    in `RUN_DIR`; copy approved evidence into the source tree only after the
    comparisons finish.
-6. Substitute each `<exact-nonmutating-gate>` below with a known read/test
-   command. Route its caches, reports, and temporary output to `RUN_DIR`; do
-   not allow a gate that writes in `CANDIDATE`.
+6. Substitute each `<exact-nonmutating-gate>` with a known read/test command.
+   Route its caches, reports, and temporary output to `RUN_DIR`; do not allow a
+   gate that writes in `CANDIDATE`.
+7. Fingerprint source and candidate before the run. Invoke Claude through
+   `scripts/run_cli_worker.py`. Set `--cwd <CANDIDATE>`, supply source and
+   candidate as `--protected-root`, and explicitly designate only candidate as
+   `--read-only-cwd-root <CANDIDATE>`. Keep the ticket, stream, stderr, and
+   receipt under `RUN_DIR`. The wrapper rejects source as a working directory,
+   closes the worker process tree, and records terminal closure. Use this
+   worker argument vector after `--`:
 
-    RUN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sol-foreman-verify.XXXXXX")"
-    CANDIDATE="$RUN_DIR/candidate"
-    MCP_CONFIG="$RUN_DIR/empty-mcp.json"
-    STREAM="$RUN_DIR/claude-stream.jsonl"
-    FINGERPRINT="<skill-root>/scripts/fingerprint_tree.py"
-    printf '%s\n' '{"mcpServers":{}}' > "$MCP_CONFIG"
-    python3 "$FINGERPRINT" --manifest "$SOURCE_REPO" > "$RUN_DIR/source-before.fingerprint"
-    python3 "$FINGERPRINT" --manifest "$CANDIDATE" > "$RUN_DIR/candidate-before.fingerprint"
+    claude -p --model <verified-model-or-alias> --effort <level> --safe-mode --strict-mcp-config --mcp-config <empty-mcp.json> --no-chrome --disable-slash-commands --no-session-persistence --permission-mode dontAsk --tools Read,Grep,Glob,Bash --allowed-tools Read Grep Glob "Bash(git status --porcelain=v1 -uall)" "Bash(git diff --no-ext-diff --binary)" "Bash(rg <approved-pattern> <approved-path>)" "Bash(<exact-nonmutating-gate>)" --disallowed-tools Edit,Write --output-format stream-json --include-hook-events --verbose
 
-    set -o pipefail
-    (
-      cd "$CANDIDATE" || exit 1
-      claude -p \
-        --model <verified-model-or-alias> \
-        --effort <level> \
-        --safe-mode \
-        --strict-mcp-config \
-        --mcp-config "$MCP_CONFIG" \
-        --no-chrome \
-        --disable-slash-commands \
-        --no-session-persistence \
-        --permission-mode dontAsk \
-        --tools Read,Grep,Glob,Bash \
-        --allowed-tools Read Grep Glob \
-          'Bash(git status --porcelain=v1 -uall)' \
-          'Bash(git diff --no-ext-diff --binary)' \
-          'Bash(rg <approved-pattern> <approved-path>)' \
-          'Bash(<exact-nonmutating-gate>)' \
-        --disallowed-tools Edit,Write \
-        --output-format stream-json \
-        --include-hook-events \
-        --verbose \
-        < "$RUN_DIR/verifier-ticket.md"
-    ) | tee "$STREAM"
-    CLAUDE_EXIT=$?
+8. Record the wrapper receipt and compare source/candidate fingerprints after
+   the run. Preserve the raw stream separately from any human-readable report.
+   Do not replace, compact, or overwrite raw evidence.
 
-    python3 "$FINGERPRINT" --manifest "$SOURCE_REPO" > "$RUN_DIR/source-after.fingerprint"
-    python3 "$FINGERPRINT" --manifest "$CANDIDATE" > "$RUN_DIR/candidate-after.fingerprint"
+The portable wrapper avoids shell interpolation and pipelines. Create the
+temporary directory through the active platform's safe temporary-directory
+facility. Use `python3` on macOS/Linux and `py` when that is the available
+Windows launcher. Treat every Claude flag as version-discovered rather than a
+cross-version promise.
 
-Record `CLAUDE_EXIT`, the exact command, and both fingerprint comparisons.
-Preserve `STREAM` as the raw event stream. Derive any human-readable summary
-separately and do not replace, compact, or overwrite the raw evidence.
-
-The named flags above are the current template, not a compatibility promise.
+The named Claude flags above are the current template, not a compatibility promise.
 If a named flag is unavailable, use `claude --help` to find an equivalent and
 record the discovered flag and version. Never guess or silently omit a
 protection. If no equivalent can disable ambient customization, restrict MCP

@@ -238,11 +238,9 @@ class ProbeCapabilitiesTests(unittest.TestCase):
                 encoding="utf-8",
             )
             which = lambda name: "/usr/local/bin/codex" if name == "codex" else None
-            with (
-                patch.dict(os.environ, {"CODEX_HOME": codex_home}),
-                patch.object(probe_capabilities.shutil, "which", side_effect=which),
-                patch.object(probe_capabilities, "version", return_value="codex-cli test"),
-            ):
+            with patch.dict(os.environ, {"CODEX_HOME": codex_home}), \
+                patch.object(probe_capabilities.shutil, "which", side_effect=which), \
+                patch.object(probe_capabilities, "version", return_value="codex-cli test"):
                 result = probe_capabilities.collect(check_auth=False)
 
         self.assertIn(
@@ -307,15 +305,11 @@ class ProbeCapabilitiesTests(unittest.TestCase):
             [
                 {
                     "slug": "gpt-experimental-seat",
-                    "display_name": None,
-                    "description": None,
                     "default_effort": None,
                     "supported_efforts": ["high"],
                 },
                 {
                     "slug": "gpt-non-list-efforts",
-                    "display_name": None,
-                    "description": None,
                     "default_effort": None,
                     "supported_efforts": [],
                 },
@@ -337,7 +331,56 @@ class ProbeCapabilitiesTests(unittest.TestCase):
             )
         self.assertIn("efforts=high", text_output.getvalue())
 
-    def test_t3_vc9_invalid_and_future_cache_timestamps_emit_refresh_warning(self):
+    def test_t3_vc9_config_and_cache_expose_only_allowlisted_values(self):
+        with tempfile.TemporaryDirectory() as codex_home:
+            root = Path(codex_home)
+            (root / "config.toml").write_text(
+                'model = "person@example.invalid"\nmodel_reasoning_effort = "TOKEN-private"\nservice_tier = "secret"\n',
+                encoding="utf-8",
+            )
+            (root / "models_cache.json").write_text(
+                json.dumps(
+                    {
+                        "fetched_at": "2026-07-18T00:00:00Z",
+                        "client_version": "person@example.invalid",
+                        "models": [
+                            {
+                                "slug": "person@example.invalid",
+                                "display_name": "TOKEN-private",
+                                "description": "do not expose",
+                                "default_reasoning_level": "private",
+                                "supported_reasoning_levels": [{"effort": "high"}],
+                            },
+                            {
+                                "slug": "gpt-safe-model",
+                                "display_name": "TOKEN-private",
+                                "description": "do not expose",
+                                "default_reasoning_level": "high",
+                                "supported_reasoning_levels": [{"effort": "high"}],
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            preferences = probe_capabilities.read_codex_preferences(root)
+            cache = probe_capabilities.read_codex_models(root)
+        rendered = json.dumps({"preferences": preferences, "cache": cache})
+        self.assertNotIn(str(root), rendered)
+        self.assertNotIn("person@example.invalid", rendered)
+        self.assertNotIn("TOKEN-private", rendered)
+        self.assertNotIn("do not expose", rendered)
+        self.assertEqual(cache["models"][0]["slug"], "gpt-safe-model")
+
+    def test_t3_vc10_missing_tomllib_degrades_without_crash(self):
+        with tempfile.TemporaryDirectory() as codex_home:
+            root = Path(codex_home)
+            (root / "config.toml").write_text('model = "gpt-5.6-sol"\n', encoding="utf-8")
+            with patch.dict(sys.modules, {"tomllib": None}):
+                result = probe_capabilities.read_codex_preferences(root)
+        self.assertEqual(result, {"exists": True, "error": "could not parse config.toml"})
+
+    def test_t3_vc11_invalid_and_future_cache_timestamps_emit_refresh_warning(self):
         cases = (
             (None, "Codex model cache timestamp is missing or invalid; refresh before asserting current availability."),
             ("not-a-timestamp", "Codex model cache timestamp is missing or invalid; refresh before asserting current availability."),
@@ -356,11 +399,9 @@ class ProbeCapabilitiesTests(unittest.TestCase):
                     encoding="utf-8",
                 )
                 which = lambda name: "/usr/local/bin/codex" if name == "codex" else None
-                with (
-                    patch.dict(os.environ, {"CODEX_HOME": codex_home}),
-                    patch.object(probe_capabilities.shutil, "which", side_effect=which),
-                    patch.object(probe_capabilities, "version", return_value="codex-cli test"),
-                ):
+                with patch.dict(os.environ, {"CODEX_HOME": codex_home}), \
+                    patch.object(probe_capabilities.shutil, "which", side_effect=which), \
+                    patch.object(probe_capabilities, "version", return_value="codex-cli test"):
                     result = probe_capabilities.collect(check_auth=False)
 
                 self.assertIn(expected_warning, result["warnings"])
