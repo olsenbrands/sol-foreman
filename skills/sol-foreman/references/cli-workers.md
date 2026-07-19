@@ -7,6 +7,7 @@ Use external CLI processes for exact seat control, cross-family independence, or
 - [Safe probe](#safe-probe)
 - [Consent](#consent)
 - [Durable tickets](#durable-tickets)
+- [Portable launcher](#portable-launcher)
 - [Model-pinned Codex](#model-pinned-codex)
 - [Claude CLI](#claude-cli)
 - [Process management](#process-management)
@@ -53,32 +54,35 @@ parent directory. A successful model turn followed by a missing output artifact
 is an evidence failure; preserve the parent execution trace and repair the
 collection path before accepting the task.
 
+## Portable launcher
+
+Use `scripts/run_cli_worker.py` for the required execution path. It passes the ticket over stdin without a shell, preserves stdout and stderr byte-for-byte, records process identity/timing/exit status in an atomic JSON receipt, and works through `python3` or the Windows `py` launcher.
+
+Provide the worker command as arguments after `--`:
+
+    python3 "<skill-root>/scripts/run_cli_worker.py" \
+      --cwd <absolute-work-directory> \
+      --ticket <ticket-path> \
+      --stdout <raw-stream-path> \
+      --stderr <stderr-path> \
+      --receipt <receipt-path> \
+      -- <worker> <worker-arguments>
+
+The line breaks are illustrative. Pass the same argument vector through the active process tool or on one line on any platform; do not copy shell continuation syntax into an incompatible shell. Use fresh evidence paths for every attempt; the launcher refuses overwrites. For blind verification, set `--cwd <candidate>`, add `--protected-root <source>` and `--protected-root <candidate>`, and add `--read-only-cwd-root <candidate>`. This permits the candidate as the explicitly read-only working tree while rejecting the protected source as `cwd`; all evidence still belongs outside both trees.
+
+Never place secrets in command arguments. The receipt intentionally records the argument vector. It is written with `status: running` immediately after spawn and atomically replaced with `status: terminal`, timing, exit data, cancellation status, and process-tree closure. On POSIX, the wrapper combines process-group closure with an inherited per-run token so it can find descendants that detach into another session; if the token scan is unavailable, closure is reported false. On Windows, the worker starts suspended, is assigned to a kill-on-close Job Object, and is then resumed, closing the pre-assignment spawn window; cancellation retains a task-tree fallback. Poll the raw stream, receipt, and wrapper process for long runs; do not accept a receipt whose `process_tree_closed` is not true.
+
 ## Model-pinned Codex
 
-Read-only analysis or verification:
+Read-only analysis or verification worker arguments:
 
-    codex exec \
-      -m <verified-model> \
-      -c model_reasoning_effort='<level>' \
-      --sandbox read-only \
-      --ephemeral \
-      -C <absolute-repo-path> \
-      - < <ticket-path>
+    codex exec --json --output-last-message <report-path> -m <verified-model> -c model_reasoning_effort=<level> --sandbox read-only --ephemeral -C <absolute-repo-path> -
 
-Implementation:
+Implementation worker arguments:
 
-    codex exec \
-      -m <verified-model> \
-      -c model_reasoning_effort='<level>' \
-      --sandbox workspace-write \
-      --ephemeral \
-      -C <absolute-repo-path> \
-      - < <ticket-path>
+    codex exec --json --output-last-message <report-path> -m <verified-model> -c model_reasoning_effort=<level> --sandbox workspace-write --ephemeral -C <absolute-repo-path> -
 
-Use `--json` for event-stream monitoring and `--output-last-message <path>` for
-a clean report artifact. Preserve the JSONL stream as well as the report; do
-not make the summary the only durable evidence. When a pipeline writes the
-stream, enable `pipefail` and record the pipeline exit status. Do not use
+The portable launcher provides the ticket stdin and captures the JSONL stream; do not add shell redirection or a pipeline. Preserve the JSONL stream as well as the report and do not make the summary the only durable evidence. Do not use
 `--dangerously-bypass-approvals-and-sandbox` unless the user explicitly
 authorizes it and an external isolation boundary makes it safe.
 
@@ -91,29 +95,15 @@ the version with the verification evidence. Do not use the following general
 read-only command for blind verification; use the hardened template in
 [`verification.md`](verification.md#hardened-claude-blind-verifier) instead.
 
-Fresh non-blind read-only analysis:
+Fresh non-blind read-only worker arguments:
 
-    claude -p \
-      --model <verified-model-or-alias> \
-      --effort <level> \
-      --no-session-persistence \
-      --output-format json \
-      --permission-mode dontAsk \
-      --allowedTools Read,Grep,Glob,Bash \
-      --add-dir <absolute-context-path> \
-      < <ticket-path>
+    claude -p --model <verified-model-or-alias> --effort <level> --no-session-persistence --output-format stream-json --verbose --permission-mode dontAsk --allowed-tools Read,Grep,Glob,Bash --add-dir <absolute-context-path>
 
-Implementation in a trusted, authorized repository:
+Implementation worker arguments in a trusted, authorized repository:
 
-    claude -p \
-      --model <verified-model-or-alias> \
-      --effort <level> \
-      --no-session-persistence \
-      --output-format json \
-      --permission-mode acceptEdits \
-      --allowedTools Read,Grep,Glob,Edit,Write,Bash \
-      --add-dir <absolute-context-path> \
-      < <ticket-path>
+    claude -p --model <verified-model-or-alias> --effort <level> --no-session-persistence --output-format stream-json --verbose --permission-mode acceptEdits --allowed-tools Read,Grep,Glob,Edit,Write,Bash --add-dir <absolute-context-path>
+
+The portable launcher supplies the prompt over stdin and captures the raw stream and receipt outside the worker tree.
 
 Use `--fallback-model` only for availability failures and only when every fallback clears the task's quality bar. Never use fallback to route around a policy refusal.
 

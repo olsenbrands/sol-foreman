@@ -9,12 +9,13 @@ import json
 import os
 import stat
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Iterator
 
 
 SCHEMA_VERSION = 1
-DEFAULT_EXCLUDES = (".git",)
+DEFAULT_EXCLUDES = (".git", ".foreman", "__pycache__", ".pytest_cache")
+DEFAULT_EXCLUDE_SUFFIXES = (".pyc",)
 
 
 def normalize_exclude(value: str) -> str:
@@ -25,7 +26,14 @@ def normalize_exclude(value: str) -> str:
 
 
 def is_excluded(relative: str, excludes: tuple[str, ...]) -> bool:
-    return any(relative == item or relative.startswith(f"{item}/") for item in excludes)
+    folded_relative = relative.casefold()
+    parts = tuple(part.casefold() for part in PurePosixPath(relative).parts)
+    return any(
+        ("/" not in item.casefold() and item.casefold() in parts)
+        or folded_relative == item.casefold()
+        or folded_relative.startswith(f"{item.casefold()}/")
+        for item in excludes
+    ) or folded_relative.endswith(DEFAULT_EXCLUDE_SUFFIXES)
 
 
 def hash_file(path: Path) -> str:
@@ -85,6 +93,7 @@ def fingerprint(root: Path, excludes: tuple[str, ...], include_manifest: bool) -
         "digest": digest.hexdigest(),
         "entry_count": len(records),
         "excluded": list(excludes),
+        "excluded_suffixes": list(DEFAULT_EXCLUDE_SUFFIXES),
     }
     if include_manifest:
         result["entries"] = records

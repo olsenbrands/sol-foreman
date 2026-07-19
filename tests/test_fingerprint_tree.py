@@ -22,6 +22,8 @@ class FingerprintTreeTests(unittest.TestCase):
                 (root / "nested/data.txt").write_text("value\n", encoding="utf-8")
                 (root / ".git").mkdir()
                 (root / ".git/volatile").write_text(str(root), encoding="utf-8")
+                (root / "nested/.git").mkdir()
+                (root / "nested/.git/volatile").write_text(str(root), encoding="utf-8")
 
             one = fingerprint_tree.fingerprint(Path(first), (".git",), True)
             two = fingerprint_tree.fingerprint(Path(second), (".git",), True)
@@ -32,13 +34,18 @@ class FingerprintTreeTests(unittest.TestCase):
     def test_content_mode_symlink_and_custom_exclude_affect_expected_fields(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
+            created_symlink = False
             target = root / "target.txt"
             target.write_text("one\n", encoding="utf-8")
             ignored = root / "cache"
             ignored.mkdir()
             (ignored / "item").write_text("ignored\n", encoding="utf-8")
             if hasattr(os, "symlink"):
-                os.symlink("target.txt", root / "link")
+                try:
+                    os.symlink("target.txt", root / "link")
+                    created_symlink = True
+                except OSError:
+                    pass
 
             before = fingerprint_tree.fingerprint(root, (".git", "cache"), True)
             target.write_text("two\n", encoding="utf-8")
@@ -47,7 +54,7 @@ class FingerprintTreeTests(unittest.TestCase):
 
         self.assertNotEqual(before["digest"], after["digest"])
         self.assertNotIn("cache", {entry["path"] for entry in after["entries"]})
-        if hasattr(os, "symlink"):
+        if created_symlink:
             link = next(entry for entry in after["entries"] if entry["path"] == "link")
             self.assertEqual(link["path"], "link")
             self.assertEqual(link["type"], "symlink")
@@ -69,12 +76,25 @@ class FingerprintTreeTests(unittest.TestCase):
                 text=True,
                 check=False,
             )
-            expected = fingerprint_tree.fingerprint(root, (".git",), True)
+            expected = fingerprint_tree.fingerprint(root, fingerprint_tree.DEFAULT_EXCLUDES, True)
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(json.loads(completed.stdout), expected)
         self.assertNotEqual(invalid.returncode, 0)
         self.assertIn("invalid relative exclude", invalid.stderr)
+
+    def test_default_excludes_orchestration_and_runtime_cache_noise_at_any_depth(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "src").mkdir()
+            (root / "src/app.py").write_text("value = 1\n", encoding="utf-8")
+            for name in (".foreman", "__pycache__", ".pytest_cache", ".GIT"):
+                (root / "src" / name).mkdir()
+                (root / "src" / name / "noise").write_text("volatile\n", encoding="utf-8")
+            (root / "loose.pyc").write_bytes(b"cache")
+            result = fingerprint_tree.fingerprint(root, fingerprint_tree.DEFAULT_EXCLUDES, True)
+        paths = {entry["path"] for entry in result["entries"]}
+        self.assertEqual(paths, {"src", "src/app.py"})
 
 
 if __name__ == "__main__":

@@ -12,11 +12,12 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 
 CURRENT_CODEX_GENERATION = (5, 6)
 MAX_MODEL_SLUG_LENGTH = 128
+KNOWN_EFFORTS = frozenset({"minimal", "low", "medium", "high", "xhigh", "max", "ultra"})
 BUNDLED_CODEX_MODEL_SLUGS = frozenset(
     {
         "gpt-5.6-sol",
@@ -37,6 +38,23 @@ def safe_category(value: Any, aliases: dict[str, str]) -> str:
         return "unknown"
     normalized = re.sub(r"[^a-z0-9]+", "-", value.strip().lower()).strip("-")
     return aliases.get(normalized, "unknown")
+
+
+def safe_model_slug(value: Any) -> Optional[str]:
+    if not isinstance(value, str) or not value or len(value) > MAX_MODEL_SLUG_LENGTH:
+        return None
+    return value if re.fullmatch(r"[a-z0-9][a-z0-9._-]*", value) else None
+
+
+def safe_effort(value: Any) -> Optional[str]:
+    return value if isinstance(value, str) and value in KNOWN_EFFORTS else None
+
+
+def safe_version(value: str) -> str:
+    value = value.strip()
+    if len(value) > 128 or not re.fullmatch(r"[A-Za-z0-9 ._()+/-]+", value):
+        return "unknown"
+    return value or "unknown"
 
 
 def run(command: list[str], timeout: int = 10) -> tuple[int, str]:
@@ -120,7 +138,7 @@ def claude_auth(executable: str) -> dict[str, Any]:
 
 def read_codex_preferences(codex_home: Path) -> dict[str, Any]:
     config_path = codex_home / "config.toml"
-    result: dict[str, Any] = {"path": str(config_path), "exists": config_path.is_file()}
+    result: dict[str, Any] = {"exists": config_path.is_file()}
     if not config_path.is_file():
         return result
     try:
@@ -128,15 +146,26 @@ def read_codex_preferences(codex_home: Path) -> dict[str, Any]:
 
         with config_path.open("rb") as handle:
             payload = tomllib.load(handle)
-        for key in ("model", "model_reasoning_effort", "service_tier"):
-            if key in payload:
-                result[key] = payload[key]
-    except (OSError, ValueError):
+        model = safe_model_slug(payload.get("model"))
+        effort = safe_effort(payload.get("model_reasoning_effort"))
+        tier = safe_category(
+            payload.get("service_tier"),
+            {"default": "default", "priority": "priority", "flex": "flex"},
+        )
+        if model:
+            result["model"] = model
+        if effort:
+            result["model_reasoning_effort"] = effort
+        if tier != "unknown":
+            result["service_tier"] = tier
+    except (ImportError, OSError, ValueError):
         result["error"] = "could not parse config.toml"
     return result
 
 
-def parse_generation(slug: str) -> tuple[int, int] | None:
+def parse_generation(slug: str) -> Optional[tuple[int, int]]:
+    if safe_model_slug(slug) is None:
+        return None
     match = re.match(r"^gpt-(\d+)\.(\d+)", slug)
     if not match:
         return None
@@ -146,7 +175,7 @@ def parse_generation(slug: str) -> tuple[int, int] | None:
         return None
 
 
-def cache_age_days(value: Any) -> float | None:
+def cache_age_days(value: Any) -> Optional[float]:
     if not isinstance(value, str) or not value:
         return None
     try:
@@ -160,7 +189,7 @@ def cache_age_days(value: Any) -> float | None:
 
 def read_codex_models(codex_home: Path) -> dict[str, Any]:
     cache_path = codex_home / "models_cache.json"
-    result: dict[str, Any] = {"path": str(cache_path), "exists": cache_path.is_file()}
+    result: dict[str, Any] = {"exists": cache_path.is_file()}
     if not cache_path.is_file():
         return result
     try:
@@ -181,38 +210,30 @@ def read_codex_models(codex_home: Path) -> dict[str, Any]:
     fetched_at = payload.get("fetched_at")
     result["fetched_at"] = fetched_at if isinstance(fetched_at, str) else None
     result["age_days"] = cache_age_days(fetched_at)
-    result["client_version"] = payload.get("client_version")
     models: list[dict[str, Any]] = []
     newer: list[str] = []
     unfamiliar: list[str] = []
     for item in raw_models:
         if not isinstance(item, dict):
             continue
-        slug = item.get("slug")
-        if (
-            not isinstance(slug, str)
-            or not slug
-            or len(slug) > MAX_MODEL_SLUG_LENGTH
-        ):
+        slug = safe_model_slug(item.get("slug"))
+        if slug is None:
             continue
         raw_efforts = item.get("supported_reasoning_levels", [])
         if not isinstance(raw_efforts, list):
             raw_efforts = []
         efforts = [
-            effort.get("effort")
+            safe_effort(effort.get("effort"))
             for effort in raw_efforts
             if (
                 isinstance(effort, dict)
-                and isinstance(effort.get("effort"), str)
-                and effort.get("effort")
+                and safe_effort(effort.get("effort")) is not None
             )
         ]
         models.append(
             {
                 "slug": slug,
-                "display_name": item.get("display_name"),
-                "description": item.get("description"),
-                "default_effort": item.get("default_reasoning_level"),
+                "default_effort": safe_effort(item.get("default_reasoning_level")),
                 "supported_efforts": efforts,
             }
         )
@@ -229,7 +250,7 @@ def read_codex_models(codex_home: Path) -> dict[str, Any]:
 
 def version(executable: str) -> str:
     code, output = run([executable, "--version"])
-    return output if code == 0 else "unknown"
+    return safe_version(output) if code == 0 else "unknown"
 
 
 def collect(check_auth: bool) -> dict[str, Any]:
@@ -251,7 +272,6 @@ def collect(check_auth: bool) -> dict[str, Any]:
     if codex:
         result["codex_cli"].update(
             {
-                "path": codex,
                 "version": version(codex),
                 "preferences": read_codex_preferences(codex_home),
                 "model_cache": read_codex_models(codex_home),
@@ -278,7 +298,7 @@ def collect(check_auth: bool) -> dict[str, Any]:
                 result["warnings"].append("Codex model cache is older than seven days; refresh before asserting current availability.")
 
     if claude:
-        result["claude_cli"].update({"path": claude, "version": version(claude)})
+        result["claude_cli"].update({"version": version(claude)})
         if check_auth:
             result["claude_cli"]["auth"] = claude_auth(claude)
 

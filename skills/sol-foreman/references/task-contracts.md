@@ -3,6 +3,8 @@
 ## Contents
 
 - [Derive criteria from the goal](#derive-criteria-from-the-goal)
+- [Lightweight single-ticket contract](#lightweight-single-ticket-contract)
+- [Preflight record](#preflight-record)
 - [Ticket schema](#ticket-schema)
 - [Evidence and negative claims](#evidence-and-negative-claims)
 - [Statuses and verdicts](#statuses-and-verdicts)
@@ -24,6 +26,58 @@ Maintain two separate sets:
 
 Give a blind product verifier only product criteria it can inspect. Do not ask it to confirm hidden dispatch history or builder claims. The lead audits orchestration evidence separately and retains final acceptance.
 
+## Lightweight single-ticket contract
+
+For one bounded, low-risk worker, keep the contract inline. Include: objective, one to three observable criteria, an exact procedure and expected observation for each, current baseline/context, one write set, route and effort, evidence required, no-delegation rule, stop conditions, and output status. Snapshot status before dispatch and verify the diff and gates afterward.
+
+Do not create preflight JSON, a companion orchestration document, a ledger, or JSONL state for this lane. Promote to program mode before another worker, a retry, shared ownership, a material risk seam, or work beyond thirty forecast minutes. Promotion is normal replanning, not a blocker.
+
+## Preflight record
+
+In program mode, create a machine-readable record before every implementation or integration dispatch. Use empty arrays only when reconnaissance confirms that no entry exists; do not use them to hide an unknown.
+
+    {
+      "schema_version": 1,
+      "id": "T-1",
+      "kind": "implementation",
+      "objective": "Implement one bounded observable behavior",
+      "baseline": "<commit-or-tree-identifier>",
+      "criteria": [
+        {"id": "PC-1", "promise": "The named behavior is observable"}
+      ],
+      "verification_gates": [
+        {
+          "criterion_id": "PC-1",
+          "procedure": "<exact command, behavior action, or inspection>",
+          "expected": "<exact passing observation>"
+        }
+      ],
+      "subsystems": ["<owned subsystem>"],
+      "expected_paths": ["<bounded relative path or glob>"],
+      "risk_seams": ["<migration/auth/provider/concurrency/shared-state seam>"],
+      "material_unknowns": [],
+      "dependencies": [],
+      "program_item_ids": ["ITEM-01"],
+      "estimated_minutes": 40,
+      "recon_complete": true,
+      "first_checkpoint": {
+        "minutes": 15,
+        "evidence": "<first coherent diff, reproduction, contract, or rendered artifact>"
+      }
+    }
+
+Allowed kinds are `recon`, `implementation`, `integration`, `docs`, and `verification`. Each criterion needs an identifier, observable promise, and matching structured gate. Execution work requires a repository-relative bounded write set, explicit dependencies, the original `program_item_ids` it advances, and completed reconnaissance. Recursive/root globs, drive-prefixed paths, cross-platform metadata/cache paths, and compound subsystem/risk labels are invalid. Risky or longer implementation work requires an early checkpoint no later than twenty minutes or half the ticket estimate, whichever is smaller.
+
+Run `scripts/preflight_ticket.py`. Treat `INVALID`, `RECON_REQUIRED`, `REVIEW_REQUIRED`, and `DECOMPOSE_REQUIRED` as no-dispatch states. For one review tripwire, the lead may add:
+
+    "review_override": {
+      "approved_by_lead": true,
+      "reason": "<why this remains one coherent ownership unit>",
+      "quality_case": "<why splitting would reduce correctness or verification quality>"
+    }
+
+Every override requires that early checkpoint. The script never permits a compound or hard oversize override. Preserve the JSON, SHA-256, and result in program evidence; dispatch through `program_guard.py dispatch` so the READY result cannot be skipped.
+
 ## Ticket schema
 
 Give every worker one bounded ticket:
@@ -32,7 +86,9 @@ Give every worker one bounded ticket:
     GOAL: <user outcome and affected behavior>
     EXPECTED OUTCOME: <observable definition of done>
     CONTEXT: <paths, baseline, relevant supplied facts>
+    PREFLIGHT: <program mode: ticket JSON path, READY result, digest, and checkpoint>
     ROUTING: <residual judgment, quality floor, lane, requested seat/effort, evidence label, uncertainty>
+    PROGRAM ITEMS: <original tracker IDs advanced by this ticket>
     PRODUCT ACCEPTANCE CRITERIA:
     - PC-1: <goal-derived, independently observable promise>
     - PC-2: <criterion>
@@ -59,7 +115,7 @@ self-contained contract it needs instead. In `MUST NOT`, say that this is a
 bounded execution role and it must not load or apply orchestration skills,
 delegate, or read outside the supplied repository/context paths.
 
-The lead creates a companion orchestration contract before dispatch:
+In program mode, the lead creates a companion orchestration contract before dispatch:
 
     ORCHESTRATION ACCEPTANCE CRITERIA:
     - OC-1: <declared lane, requested seat/effort, and evidence labels are recorded honestly>
@@ -92,7 +148,7 @@ Require the worker's first line to be exactly one:
 | `DONE` | Work is complete with required evidence. | Inspect artifacts and enter verification. |
 | `DONE_WITH_CONCERNS` | Work is complete but risks or unverified items remain. | Resolve every concern before acceptance. |
 | `NEEDS_CONTEXT` | A specific unsupported material fact prevents safe work. | Supply it and re-dispatch the corrected ticket. |
-| `BLOCKED` | A capability or environment prevents completion. | Record exact evidence, classify, and escalate; do not pretend. |
+| `BLOCKED` | An external capability, input, infrastructure, or state prevents completion. | Record exact evidence, classify, and escalate; never use it for internal decomposition. |
 
 Require the report after the status to include changed files, criteria-by-criterion observations, exact checks, raw evidence locations, model evidence labels, timing/cost/usage or `unavailable`, concerns, blockers, and repository status when it could write.
 
@@ -110,7 +166,7 @@ Do not mix worker statuses with verifier verdicts. A product `PASS` does not cer
 
 Before a wave, compare WRITE SET values. Treat manifests, lockfiles, generated output, migrations, and shared fixtures as overlap. Serialize overlapping tickets or isolate them in worktrees/copies; tell every worker the filesystem is live and forbid out-of-set edits. Snapshot the baseline. Read-only lanes may overlap only when they do not share an exclusive environment.
 
-For authorized delegated repository-write runs, use `.foreman/ledger.md` with append-only entries:
+For authorized program-mode repository-write runs, use `.foreman/ledger.md` plus the JSONL program state described in [program-control.md](program-control.md). Keep both append-only. The lead is the sole writer:
 
     # Foreman Ledger — <task>
     BASELINE: <commit> | <status summary> | <timestamp>
@@ -122,7 +178,7 @@ For authorized delegated repository-write runs, use `.foreman/ledger.md` with ap
     <task | residual judgment | quality floor | lane | requested seat/effort | evidence labels | uncertainty | reason>
 
     ## Tasks
-    <id | lifecycle | write set | canonical process/thread identity | artifact path>
+    <id | original program item IDs | lifecycle | write set | canonical process/thread identity | artifact path>
 
     ## Verification Contracts
     <id | product criteria/gates | orchestration criteria/proof owner | evidence required>
@@ -136,18 +192,12 @@ For authorized delegated repository-write runs, use `.foreman/ledger.md` with ap
     ## Decisions
     <scope, consent, criteria corrections, route changes, uncertainty, blockers, acceptance>
 
-Use `PENDING -> DISPATCHED -> REPORTED -> VERIFYING -> VERIFIED`, with `FAILED -> FIXING -> VERIFYING` for correction. Read-only advisory tasks may end `ACCEPTED`; solo work ends `SELF_REVIEWED`, never `VERIFIED`. For read-only work, keep equivalent state in the thread or permitted temporary location, not the target repository.
+Use `PENDING -> DISPATCHED -> REPORTED -> VERIFYING -> VERIFIED`, with `FAILED -> FIXING -> VERIFYING` for correction. `VERIFIED` is a terminal ticket state; original program progress advances only through that event's explicit `completed_item_ids`. Whole-program acceptance additionally requires the terminal assembled `program_completed` event. Read-only advisory tasks may end `ACCEPTED`; solo work ends `SELF_REVIEWED`, never `VERIFIED`. For read-only work, keep equivalent state in the thread or permitted temporary location, not the target repository.
 
 ## Retries and process closure
 
-Append attempts and decisions; never rewrite history to make a run appear cleaner. Apply the first matching rule:
+Use the ordered retry ladder and program breaker in [program-control.md](program-control.md). Append attempts and decisions; never rewrite history to make a run appear cleaner. A correction ticket carries the unchanged criteria and smallest relevant failure delta rather than the full conversation or all prior reports.
 
-1. Correct a bad ticket or unreasonable criterion and retry the same seat; record why it was not a model failure.
-2. After a first real failure, add missing context/evidence or raise effort.
-3. After a second real failure at one seat, escalate one capability class or let the lead take over.
-4. Stop and report evidence after failure at the highest suitable seat.
-5. Stop after two failed fix waves against the same findings.
-
-Do not retry identical input a third time or downgrade after evidence proves a stronger seat is required. When a worker stops reporting, confirm whether it is live; interrupt only when necessary; record `LOST`, identity, last artifact, and exit information; diff against baseline; reconcile partial edits; and never start a replacement while the old writer may still be live.
+When a worker stops reporting, confirm whether it is live; interrupt only when necessary; record `LOST`, identity, last artifact, and exit information; diff against baseline; reconcile partial edits; and never start a replacement while the old writer may still be live.
 
 Before final acceptance, record terminal state for every dispatched worker/process, inspect for remaining writers, reconcile partial artifacts, and re-run the full product and orchestration contracts.
