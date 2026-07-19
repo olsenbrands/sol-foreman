@@ -5,137 +5,83 @@ description: Orchestrate quality-first work across native Codex subagents, model
 
 # Sol Foreman
 
-Act as the lead. Preserve the expensive model's attention for scoping, routing, judgment, and acceptance. Delegate execution only after understanding the job and defining how success will be proven.
+Act as the lead. Reserve the strongest seat for scoping, routing, judgment, integration, and acceptance. Delegate only after defining how success will be proven.
 
 ## First law
 
-Choose economics only among seats that clearly meet the quality bar. When uncertain, route upward. Prefer stronger work over token savings, and stop cleanly rather than silently downshift below the bar.
-
-The lead owns the outcome. An agent's completion message is a claim, never proof.
+Choose economics only among seats that clearly meet the quality bar. When uncertainty remains, route upward. Do small or tightly coupled work directly. A completion message is a claim, never proof; the lead owns acceptance.
 
 ## Run the workflow
 
-### 1. Understand the whole job
+### 1. Understand and decompose
 
 Before dispatching:
 
 1. Read applicable instructions, plans, trackers, repository state, and prior decisions.
-2. Inspect enough of the real implementation to identify dependencies and shared files.
-3. Separate facts from assumptions and surface any user decision that would materially change the result.
-4. Build a task graph: prerequisites, independent lanes, integration points, and final gates.
-5. Decide whether delegation creates independent value. Do small or tightly coupled work directly.
+2. Inspect enough of the implementation to identify dependencies, shared files, and material unknowns.
+3. Separate facts from assumptions. Return `NEEDS_CONTEXT` for a material routing fact not supported by supplied current or official evidence.
+4. Build a task graph with prerequisites, independent lanes, integration points, and final gates.
+5. Decide whether delegation creates independent value; never use workers as a substitute for understanding.
 
-Do not use agents as a substitute for understanding the task.
+### 2. Inspect the available crew
 
-### 2. Probe the available crew
+Set `<skill-root>` to the absolute directory containing this loaded `SKILL.md`. Resolve every bundled script and reference from `<skill-root>`, never from the user's target repository or current working directory. For example, run `python3 "<skill-root>/scripts/probe_capabilities.py" --json` (`py` on Windows).
 
-Run `python3 scripts/probe_capabilities.py` once per session (`py` on Windows) and read [models-and-routing.md](references/models-and-routing.md) when selecting seats.
+Read [models-and-routing.md](references/models-and-routing.md) before selecting seats. Record the available lane, requested model/effort, evidence label, residual-judgment assessment, quality floor, and uncertainty. Do not claim availability, entitlement, or actual use from provider positioning, a task name, or a request alone.
 
-Classify the usable lanes:
+For a short job, a fresh exact cache entry plus accepted CLI model/effort flags can be adequate availability evidence. Do not require a billable entitlement probe merely to increase confidence. Record that no live entitlement probe ran and what remains uncertain. For a long, costly, or materially risky dispatch, make a small non-destructive confirmation only with the user's billable-work consent.
 
-- **Native Codex:** collaboration tools such as spawn, message, follow-up, wait, list, and interrupt. Best for integrated parallel work and shared-thread management.
-- **Pinned Codex CLI:** `codex exec` with an explicit model and reasoning effort. Use when exact Codex seat selection matters and the native spawn surface cannot pin it.
-- **Claude CLI:** `claude -p` with an explicit model and effort. Use for bounded implementation, independent judgment, or cross-family verification.
-- **Solo:** no usable delegation lane. Keep the planning and verification discipline, but label the result self-reviewed rather than independently verified.
+Classify usable lanes:
 
-Never claim a model or effort was used unless the runtime, CLI, or resulting metadata confirms it. Native subagents often inherit the parent runtime; tool schemas vary.
+- **Native Codex:** managed collaboration children; use for integrated work when inherited/unconfirmed seats are acceptable.
+- **Pinned Codex CLI:** explicit `codex exec` model and effort; use when exact seat control is required.
+- **Claude CLI:** explicit `claude -p` model and effort; use for bounded work, independent judgment, or cross-family verification.
+- **Solo:** keep the same discipline, but label the result `SELF_REVIEWED`, never independently verified.
 
-Explicit invocation of `$sol-foreman` or an explicit request for Codex/Claude delegation is consent to ordinary orchestration on the named task. Announce the crew, seats, write scope, and reason before billable fan-out. If this skill triggers implicitly, obtain confirmation before the first external CLI dispatch.
+Explicit invocation of `$sol-foreman` or an explicit request for Codex/Claude delegation consents to ordinary orchestration on that task. Announce crew, seats, write scope, and reason before billable fan-out. When this skill triggers implicitly, obtain confirmation before the first external CLI dispatch.
 
-**Fable gate:** Never dispatch Claude Fable 5 unless the user requested Fable in the current session or grants permission after hearing why it is materially better for the task. Explain the expected advantage and that Fable has distinct, expensive usage. Do not use Mythos unless the user explicitly requests it, has access, and the defensive-security scope is authorized.
+**Fable gate:** Dispatch Claude Fable 5 only when the user requested Fable in this session or grants permission after hearing why it is materially better. Explain its expected advantage and distinct, expensive usage. Do not use Mythos unless the user explicitly requests it, has verified access, and the defensive-security scope is authorized.
 
-### 3. Define verification before assignment
+### 3. Define non-self-confirming proof
 
-For every delegated task, write the verification contract first:
+Write the verification contract before every assignment. Derive criteria from the user's goal and observable promises, not solely from existing tests or the worker's proposed implementation. Separate product proof from orchestration proof. Require observable evidence for negative claims, raw approved evidence streams, cost/timing data when available, scope fences, retries, and process closure. Use [task-contracts.md](references/task-contracts.md).
 
-- observable expected outcome;
-- acceptance criteria, each independently gradeable;
-- exact deterministic commands or checks;
-- behavioral or visual proof when commands are insufficient;
-- required evidence and artifact paths;
-- forbidden side effects and scope boundaries;
-- stop conditions and final status vocabulary.
+### 4. Route by residual judgment
 
-Check that the criteria test the user's actual goal, are achievable by the worker, and do not require unavailable credentials or environment access. See [verification.md](references/verification.md).
+Use **FRONTIER** for unresolved ambiguity, architecture, novel debugging, security judgment, hard concurrency, or final high-stakes acceptance; **WORKHORSE** for substantive but well-specified execution and review; **FAST** for bounded, repeatable, low-judgment work. Route on the judgment still left after the ticket prescribes constraints, algorithm, interfaces, and proof—not on domain reputation, line count, or the implementation's nominal size.
 
-### 4. Route for quality
+Select the least costly verified seat that clears the quality floor. If a task could reasonably need the next class, use the next class. Match effort to reasoning depth, not duration. Preserve cross-family independence when it materially improves verification.
 
-Use three capability classes:
+### 5. Write bounded tickets and dispatch
 
-- **FRONTIER:** architecture, ambiguous debugging, security judgment, hard concurrency, novel research, and final high-stakes review.
-- **WORKHORSE:** well-specified implementation, tests, migrations, refactors, and substantive review.
-- **FAST:** reconnaissance, extraction, inventory, mechanical edits, and narrow repeatable checks.
+Give each worker one complete ticket using [task-contracts.md](references/task-contracts.md). Include the verification contract verbatim, a disjoint WRITE SET, and explicit prohibition on worker fan-out. Serialize overlap in manifests, lockfiles, generated output, migrations, and shared fixtures; use isolated worktrees or copies when disjointness cannot be proven.
 
-Select the cheapest verified seat that clearly clears the bar. If a task could reasonably need the next class, use the next class. Use effort to match reasoning depth, not task length.
+Use [native-codex.md](references/native-codex.md) for native children and [cli-workers.md](references/cli-workers.md) for CLI subprocesses. Before a wave, snapshot the baseline and status; record the ticket, route, evidence label, scope, attempt, and proof plan in the authorized ledger. Announce parallelism only for genuinely independent lanes and keep lead capacity available.
 
-Prefer cross-family build/verify pairs when independence matters. Prefer Terra over Luna whenever the work contains meaningful judgment. Prefer Sol over Terra whenever ambiguity, integration risk, or final acceptance dominates.
+While work runs, inspect or plan only disjoint work. Monitor live processes and provide concise updates. An unreported worker is not complete.
 
-### 5. Write bounded tickets
-
-Give each worker one self-contained ticket using [task-contracts.md](references/task-contracts.md). Include the verification contract verbatim.
-
-Every implementation ticket declares a disjoint WRITE SET. Serialize overlapping work, including shared manifests, generated files, migrations, and lockfiles. Use isolated worktrees or disposable copies when concurrent writes cannot be proven disjoint.
-
-Workers must not spawn workers. Keep orchestration at the lead.
-
-### 6. Dispatch and supervise
-
-Use [native-codex.md](references/native-codex.md) for collaboration subagents and [cli-workers.md](references/cli-workers.md) for Codex or Claude subprocesses.
-
-Before a wave:
-
-1. Snapshot the baseline commit and `git status --porcelain`.
-2. Record task, lane, seat, effort, write set, verification contract, and attempt in `.foreman/ledger.md` when repository writes are authorized. For read-only work, keep state outside the repository or in the thread.
-3. Announce parallelism only for genuinely independent lanes.
-4. Keep one concurrency slot available for the lead when the runtime has a fixed slot limit.
-
-While workers run, the lead may inspect or plan, but must not edit overlapping paths. Monitor long-running jobs and provide concise user updates. A worker that has not reported is not complete.
-
-### 7. Grade artifacts, not narratives
+### 6. Verify and close
 
 For each result:
 
-1. Check the declared status and required evidence.
-2. Inspect the actual diff, files, and repository state.
-3. Run the real deterministic gates independently where practical.
-4. Test the behavior the user asked for, not merely the worker's checklist.
-5. Dispatch a blind fresh-context verifier for meaningful changes. Give it the original task, verification criteria, changed paths or diff, and no builder reasoning.
-6. Confirm the verifier did not mutate the candidate.
-7. Accept only when every required criterion has evidence.
+1. Inspect its declared status, raw evidence, actual diff, and repository state.
+2. Re-run deterministic gates where practical and test the user's behavior, not just the worker checklist.
+3. Use a blind fresh-context verifier for meaningful changes; provide task, criteria, and candidate, not builder reasoning.
+4. Keep product verification separate from the lead's orchestration audit. Confirm the verifier did not mutate the candidate.
+5. Accept only when every product and orchestration criterion has evidence, required processes have closed, and no writer remains live.
 
-The lead must personally synthesize findings and decide PASS, NEEDS FIX, or BLOCKED. Never paste contradictory agent outputs to the user as a substitute for judgment.
+The lead alone synthesizes `PASS`, `NEEDS FIX`, or `BLOCKED`. Same-agent self-review is useful but never independent verification.
 
-### 8. Correct failures deliberately
+### 7. Correct deliberately
 
-When work misses criteria:
+Classify a miss as a bad ticket, capability gap, implementation defect, flaky evidence, or external blocker. Correct a bad ticket and retry without counting a model failure. For a real failure, add context/evidence or raise effort; after a second real failure at one seat, escalate one capability class or take over. Batch verifier findings into one fix wave and re-run the full contract. Stop after two failed waves against the same findings or a failure at the highest suitable seat. Never rerun an unchanged failed prompt merely until it passes.
 
-1. Re-check whether the criterion is relevant, correctly worded, achievable, and supported by the environment.
-2. Classify the failure as bad ticket, capability gap, implementation defect, flaky evidence, or external blocker.
-3. Correct a bad ticket and retry the same seat without counting that as a model failure.
-4. For a real failure, add evidence or raise effort; after a second real failure at one seat, escalate the seat or take over.
-5. Batch a verifier's findings into one fix wave, then re-run the full verification contract.
-6. Stop after two failed fix waves against the same findings or a failure at the highest suitable seat. Report the evidence honestly.
-
-Do not rerun unchanged prompts until one happens to pass.
-
-### 9. Finish as the lead
-
-Before reporting completion:
-
-- reconcile all worker edits and temporary artifacts;
-- confirm no worker remains active;
-- run the final project gate;
-- review the final diff and repository status;
-- map evidence to every original acceptance criterion;
-- report what was verified, what was not, and any residual risk;
-- update the ledger with the final disposition.
-
-Independent verification means a genuinely fresh reader or process. Same-agent self-review is useful but must not be labeled independent.
+Before reporting, reconcile artifacts, confirm every worker/process terminal state, run final gates, review the complete diff and status, map evidence to original criteria, record the final disposition, and state unverified limits honestly.
 
 ## Resource map
 
-- [models-and-routing.md](references/models-and-routing.md): live discovery, current dated model snapshot, class and effort guidance.
-- [native-codex.md](references/native-codex.md): native collaboration lifecycle, context, write-safety, and model-pin limits.
-- [cli-workers.md](references/cli-workers.md): safe Codex CLI and Claude CLI invocation, monitoring, and collection.
-- [task-contracts.md](references/task-contracts.md): ticket, status, ledger, and retry schemas.
-- [verification.md](references/verification.md): criteria design, blind verification, evidence precedence, and acceptance.
+- [models-and-routing.md](references/models-and-routing.md): crew strengths, limits, upgrade signals, evidence labels, availability, and residual-judgment routing.
+- [task-contracts.md](references/task-contracts.md): goal-derived criteria, product/orchestration proof, ticket and ledger schemas, evidence, retries, and closure.
+- [native-codex.md](references/native-codex.md): native lifecycle, inherited/unconfirmed seat evidence, model-control limits, and blind review.
+- [cli-workers.md](references/cli-workers.md): safe Codex and Claude subprocess invocation, monitoring, and collection.
+- [verification.md](references/verification.md): blind verification, evidence precedence, and acceptance.
