@@ -8,6 +8,7 @@ Use external CLI processes for exact seat control, cross-family independence, or
 - [Consent](#consent)
 - [Durable tickets](#durable-tickets)
 - [Portable launcher](#portable-launcher)
+- [Harness-visible Claude CLI transport](#harness-visible-claude-cli-transport)
 - [Model-pinned Codex](#model-pinned-codex)
 - [Claude CLI](#claude-cli)
 - [Process management](#process-management)
@@ -56,7 +57,7 @@ collection path before accepting the task.
 
 ## Portable launcher
 
-Use `scripts/run_cli_worker.py` for the required execution path. It passes the ticket over stdin without a shell, preserves stdout and stderr byte-for-byte, records process identity/timing/exit status in an atomic JSON receipt, and works through `python3` or the Windows `py` launcher.
+Use `scripts/run_cli_worker.py` for the required execution path. It passes the ticket over stdin without a shell, preserves stdout and stderr byte-for-byte except for mandatory gateway-URL redaction, records process identity/timing/exit status in an atomic JSON receipt, and works through `python3` or the Windows `py` launcher.
 
 Provide the worker command as arguments after `--`:
 
@@ -70,7 +71,48 @@ Provide the worker command as arguments after `--`:
 
 The line breaks are illustrative. Pass the same argument vector through the active process tool or on one line on any platform; do not copy shell continuation syntax into an incompatible shell. Use fresh evidence paths for every attempt; the launcher refuses overwrites. For blind verification, set `--cwd <candidate>`, add `--protected-root <source>` and `--protected-root <candidate>`, and add `--read-only-cwd-root <candidate>`. This permits the candidate as the explicitly read-only working tree while rejecting the protected source as `cwd`; all evidence still belongs outside both trees.
 
-Never place secrets in command arguments. The receipt intentionally records the argument vector. It is written with `status: running` immediately after spawn and atomically replaced with `status: terminal`, timing, exit data, cancellation status, and process-tree closure. On POSIX, the wrapper combines process-group closure with an inherited per-run token so it can find descendants that detach into another session; if the token scan is unavailable, closure is reported false. On Windows, the worker starts suspended, is assigned to a kill-on-close Job Object, and is then resumed, closing the pre-assignment spawn window; cancellation retains a task-tree fallback. Poll the raw stream, receipt, and wrapper process for long runs; do not accept a receipt whose `process_tree_closed` is not true.
+Never place secrets in command arguments. The receipt intentionally records the argument vector, but gateway URLs are redacted from the receipt, launcher errors, and final stdout/stderr artifacts. It is written with `status: running` immediately after spawn through an atomic create that refuses an existing receipt, then atomically replaced with `status: terminal`, timing, exit data, cancellation status, and process-tree closure. On POSIX, the wrapper combines process-group closure with an inherited per-run token so it can find descendants that detach into another session; if the token scan is unavailable, closure is reported false. On Windows, the worker starts suspended, is assigned to a kill-on-close Job Object, and is then resumed, closing the pre-assignment spawn window; cancellation retains a task-tree fallback. Poll the raw stream, receipt, and wrapper process for long runs; do not accept a receipt whose `process_tree_closed` is not true.
+
+## Harness-visible Claude CLI transport
+
+When the active Codex collaboration surface renders native subagents as live
+activity, dispatch a long Claude CLI worker through one thin native-Codex
+transport wrapper. The wrapper appears as the visible work item and returns a
+completion notification to the lead. The Claude process itself remains a
+subprocess behind that wrapper; it is **not** a native Codex agent and is not
+independently visible in the harness. The direct `run_cli_worker.py` path only
+exposes raw stream files and a receipt, so use it directly when native-agent
+visibility is unavailable or the call is short enough that wrapper overhead is
+not worthwhile.
+
+The wrapper is transport, not a second execution worker. Its ticket must name
+the absolute paths and exact argument vector for one `run_cli_worker.py`
+invocation. It must:
+
+1. Run that exact launcher invocation once, with the supplied timeout; never
+   compose a raw `claude` command, add shell operators, or retry it.
+2. Make no repository edits, analysis, acceptance decision, or subagent
+   dispatch. It may write only the ticket, raw stdout/stderr, and receipt files
+   already named by the lead.
+3. Relay the transport envelope (launcher exit code and the receipt's `pid`,
+   `status`, `process_tree_closed`, and artifact paths) separately from the
+   Claude worker's final raw message. The worker's own first-line status or
+   verdict remains authoritative; the transport envelope is not a worker
+   report.
+
+This is the narrow exception to the skill's no-fan-out rule: transcript review
+can prove one wrapper and one fixed launcher invocation, but a general shell
+cannot mechanically prevent a wrapper from breaking contract. Treat a raw
+`claude` call, a second launcher call, or any wrapper edit as a scope breach
+that voids the dispatch.
+
+| Observation | Treatment |
+|---|---|
+| Launcher exits nonzero or receipt is missing | Underlying worker is `BLOCKED`; preserve stderr and receipt evidence. |
+| Receipt says `process_tree_closed: false` | `BLOCKED`; do not reconcile or retry until process closure is independently proved. |
+| Launcher exits 0 but no parseable worker status/verdict is relayed | `NEEDS FIX` for malformed collection; retain raw artifacts. |
+| Wrapper is silent past its deadline | Wrapper is `LOST`; inspect its receipt and token/process evidence, terminate any live child, reconcile the workspace, then decide whether a new attempt is allowed. |
+| Served-model metadata is absent or disagrees with the request | Preserve the raw evidence and apply the provenance-label rules in `models-and-routing.md`; wrapper visibility does not confirm a seat. |
 
 ## Model-pinned Codex
 

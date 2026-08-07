@@ -62,7 +62,7 @@ Expand only after the pilot yields accepted work and validates ticket size, rout
 
 ### 5. Dispatch bounded workers
 
-Give each worker one self-contained contract with the original goal, criteria, exact verification, evidence, write set, constraints, stop states, and output format. Prohibit worker fan-out. Serialize shared manifests, lockfiles, migrations, generated files, and fixtures; otherwise use isolated worktrees or copies.
+Give each worker one self-contained contract with the original goal, criteria, exact verification, evidence, write set, constraints, stop states, and output format. Prohibit worker fan-out. A native-Codex transport wrapper may make one exact `run_cli_worker.py` invocation for a named Claude CLI ticket and relay its artifacts; it does no judgment, edits, or further dispatch, so this narrow handoff is transport rather than worker fan-out. Serialize shared manifests, lockfiles, migrations, generated files, and fixtures; otherwise use isolated worktrees or copies.
 
 Use [native-codex.md](references/native-codex.md) for native children and [cli-workers.md](references/cli-workers.md) for subprocess workers. Snapshot baseline and status. For authorized program-mode repository writes, keep append-only state under `.foreman/`; otherwise use an approved temporary run directory. The lead is the sole state writer. Record every execution dispatch through `program_guard.py dispatch` so READY preflight, original item IDs, dependencies, portable write set, attempt, route, and worker identity are bound into state. Keep read-only recon/advisory dispatches in the thread or ledger.
 

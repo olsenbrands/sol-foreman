@@ -28,6 +28,72 @@ Use these exact labels. Preserve all applicable labels rather than replacing wea
 
 Record the requested model/effort separately from each label, source path or event ID, timestamp, and any disagreement. Use `runtime-metadata-confirmed` only for the fields actually present. An accepted request plus self-report remains `requested-pin` + `worker-self-report`, not confirmation.
 
+## Identity self-report nuance (2026-08-07)
+
+`worker-self-report` is a preserved claim, not proof of a model's weights or
+serving route. Identity answers track the prompt and system context a worker
+received; a harness that injects the worker's identity makes the answer
+usually right, but still does not turn it into independent runtime evidence.
+The current Claude Code checks resisted identity priming in three of three
+attempts, including a false splitter-style system note. That is reassuring
+about this harness's current anchoring, not a provenance mechanism. Identity
+questions are noise with the shape of a check; resolve any material dispute
+with approved runtime metadata instead.
+
+## Empirical Claude CLI status (2026-08-07)
+
+Three non-interactive `claude -p --model <id> "Reply with exactly: ok"`
+probes ran on this machine. The current `haiku` alias returned `ok` with exit
+code 0. A nonexistent ID (`claude-nonexistent-99`) and a plausible but wrong
+dated ID (`claude-haiku-4-5-20251002`) each exited 1 and reported that the
+selected model might not exist or be inaccessible. Neither invalid request
+silently produced `ok` or another successful response.
+
+That is current-build evidence of loud failure for these two invalid-ID cases,
+not a warranty that every provider, account policy, gateway, deprecated alias,
+or future Claude Code build will reject instead of substitute. A claude-cli
+`requested-pin` therefore remains request-side evidence: preserve the command,
+exit status, and raw stream, and upgrade it only if provider runtime metadata
+identifies the model that actually served the turn.
+
+## Silent-fallback hazard
+
+A runtime can accept a model-routing request yet serve a different seat without
+an actionable error. This is a routing failure, not evidence that the work is
+bad or that a worker lied; organization policy, stale aliases, unsupported
+tiers, and gateways can all create it. The documented claudemix field case
+(2026-08) demonstrated the class: a foreign model requested through one Claude
+Code configuration surface was ignored and a Claude model served, while a
+different supported configuration surface routed through the proxy. Treat that
+as a caution about unsupported routing paths, not as an instruction to install
+claudemix or a gateway.
+
+The 2026-08-07 Claude Code checks provide current, bounded counter-evidence for
+two ordinary no-proxy cases. They are useful behavior observations, not served
+model proof and not a cross-runtime guarantee.
+
+| Surface tested | Observed result | What it means |
+|---|---|---|
+| Agent-file foreign-model pin with no proxy | Loud failure: `Agent terminated early due to an API error` | The unsupported request did not proceed as a successful silent substitute in this test. |
+| Inline model value outside the agent-tool schema | Schema validation rejected the value | The request was rejected before dispatch in this test. |
+| `claude -p --model` invalid IDs (this machine; above) | Both invalid IDs exited 1; neither produced `ok` | The claude-cli lane failed loudly for these probes, while a valid `haiku` alias succeeded. |
+
+Countermeasures use the existing evidence labels rather than an inferred model
+identity:
+
+| Existing label | Countermeasure when routing can substitute |
+|---|---|
+| `requested-pin` | Record the exact supported invocation, validate availability where the run warrants a consented probe, and keep the request distinct from a result. |
+| `worker-self-report` | Preserve the claim for diagnosis, but never use an identity answer to resolve a routing dispute. |
+| `native-inherited-unconfirmed` | Record the inheritance uncertainty; do not turn parent configuration, an agent file, or normal-looking output into a per-child model claim. |
+| `runtime-metadata-confirmed` | Upgrade only from approved provider or CLI metadata that identifies the serving model; retain the raw event/source path and disagreements. |
+
+If a request succeeds but deterministic serving metadata disagrees with it,
+record both facts, classify the dispatch as a routing/transport failure, and
+stop class-sensitive acceptance until a verified route or an explicitly
+accepted reduced-assurance plan exists. Do not retry an unchanged request on
+vibes.
+
 ## Current crew positioning
 
 Treat every row as a quality/risk guide. Verify access before dispatch; provider publication and local cache presence do not grant access.

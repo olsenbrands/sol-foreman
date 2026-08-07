@@ -8,6 +8,28 @@ Sol Foreman is a quality-first Codex skill for delegating work to native Codex s
 
 The rule is simple: save usage only among models that clear the quality bar. If quality is uncertain, route upward.
 
+## What's new in v0.3.0
+
+This release makes the worker route easier to trust and the CLI lane easier to
+operate safely:
+
+- **Honest routing evidence.** A requested model, a worker's identity answer,
+  inherited native context, and provider runtime metadata remain distinct. The
+  routing guide now explains silent substitution risks and records current
+  Claude CLI behavior without pretending a request proves the served model.
+- **Visible Claude CLI transport where supported.** A long Claude CLI job can
+  ride inside one narrow native-Codex wrapper so the harness shows a live work
+  item and delivers completion to the lead. The wrapper is visible; the inner
+  Claude process is not, and direct launch remains the right fallback for
+  short calls or harnesses without native activity.
+- **Safer durable worker evidence.** The launcher refuses symlink/non-regular
+  artifact entries and existing receipts, closes a child if initial receipt
+  tracking fails, and redacts gateway URLs from durable receipt and stream
+  artifacts.
+- **Executable release discipline.** New setup and cross-family release
+  runbooks make consent, availability, evidence, review, and release hygiene
+  explicit gates instead of conventions.
+
 ## Why use it
 
 - Define verification criteria before every assignment.
@@ -48,18 +70,18 @@ Missing collaboration or CLI access degrades honestly. It never becomes fake del
 
 Ask Codex:
 
-    Use $skill-installer to install https://github.com/olsenbrands/sol-foreman/tree/v0.2.0/skills/sol-foreman globally.
+    Use $skill-installer to install https://github.com/olsenbrands/sol-foreman/tree/v0.3.0/skills/sol-foreman globally.
 
 Or use Codex's built-in installer on macOS or Linux:
 
     python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/install-skill-from-github.py" \
       --repo olsenbrands/sol-foreman \
       --path skills/sol-foreman \
-      --ref v0.2.0
+      --ref v0.3.0
 
 On Windows:
 
-    py "%USERPROFILE%\.codex\skills\.system\skill-installer\scripts\install-skill-from-github.py" --repo olsenbrands/sol-foreman --path skills/sol-foreman --ref v0.2.0
+    py "%USERPROFILE%\.codex\skills\.system\skill-installer\scripts\install-skill-from-github.py" --repo olsenbrands/sol-foreman --path skills/sol-foreman --ref v0.3.0
 
 Start a fresh Codex session after installation so the skill catalog refreshes.
 
@@ -115,6 +137,11 @@ The suite includes ticket preflight, exact program state, full 45-item completio
 ## Known limits
 
 - Native subagent model identity is only as precise as the active collaboration surface exposes.
+- Current Codex CLI JSONL does not expose a served-model field, so a Codex
+  `-m` request remains `requested-pin` until a future provider metadata source
+  can prove otherwise.
+- A native wrapper is a harness-visible transport item, not proof that the
+  inner Claude subprocess is visible or that its requested model served.
 - Subscription and model entitlement must be confirmed locally; bundled model guidance is not an entitlement claim.
 - Sol Foreman improves control and verification but cannot guarantee that every delegated task succeeds.
 
@@ -124,6 +151,8 @@ The suite includes ticket preflight, exact program state, full 45-item completio
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Security reporting: [SECURITY.md](SECURITY.md)
 - Skill entrypoint: [skills/sol-foreman/SKILL.md](skills/sol-foreman/SKILL.md)
+- Setup runbook: [setup-runbook.md](skills/sol-foreman/references/setup-runbook.md)
+- Release review process: [release-process.md](skills/sol-foreman/references/release-process.md)
 
 ## Maintainer
 

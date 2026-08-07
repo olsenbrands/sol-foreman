@@ -7,8 +7,10 @@ import argparse
 import ctypes
 import json
 import os
+import re
 import secrets
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -21,6 +23,8 @@ from typing import Any, Optional
 
 PROCESS_TOKEN_ENV = "SOL_FOREMAN_PROCESS_TOKEN"
 WINDOWS_CREATE_SUSPENDED = 0x00000004
+GATEWAY_URL = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
+GATEWAY_URL_BYTES = re.compile(rb"https?://[^\s\"'<>]+", re.IGNORECASE)
 
 
 def within(path: Path, root: Path) -> bool:
@@ -37,10 +41,64 @@ class WorkerCancelled(Exception):
         self.signum = signum
 
 
+def redact_gateway_urls(value: str) -> str:
+    """Keep gateway endpoints out of durable receipts and launcher errors."""
+    return GATEWAY_URL.sub("<redacted-gateway-url>", value)
+
+
+def redact_gateway_artifact(path: Path) -> None:
+    """Replace endpoint URLs in final raw-stream artifacts without changing other bytes."""
+    if not path.exists():
+        return
+    _reject_artifact_symlink(path)
+    payload = path.read_bytes()
+    redacted = GATEWAY_URL_BYTES.sub(b"<redacted-gateway-url>", payload)
+    if redacted == payload:
+        return
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(redacted)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except Exception:
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
+        raise
+
+
+def _reject_artifact_symlink(path: Path) -> None:
+    """Reject the artifact entry itself without resolving a dangling link away."""
+    if path.is_symlink():
+        raise ValueError(f"artifact path is a symlink: {path}")
+
+
 def validate_artifacts(paths: list[Path], protected_roots: list[Path]) -> None:
+    if len(paths) != 4:
+        raise ValueError("ticket, stdout, stderr, and receipt paths are required")
+    ticket, *evidence_paths = paths
+    for path in paths:
+        _reject_artifact_symlink(path)
     resolved = [path.resolve(strict=False) for path in paths]
     if len(set(resolved)) != len(resolved):
         raise ValueError("ticket, stdout, stderr, and receipt paths must be distinct")
+    try:
+        ticket_metadata = ticket.lstat()
+    except FileNotFoundError:
+        ticket_metadata = None
+    if ticket_metadata is not None and not stat.S_ISREG(ticket_metadata.st_mode):
+        raise ValueError(f"ticket must be a regular file: {ticket}")
+    for path in evidence_paths:
+        try:
+            metadata = path.lstat()
+        except FileNotFoundError:
+            continue
+        if not stat.S_ISREG(metadata.st_mode):
+            raise ValueError(f"evidence path exists and is not a regular file: {path}")
+        raise ValueError(f"evidence path already exists; use a fresh run path: {path}")
     for path in resolved:
         for root in protected_roots:
             if within(path, root):
@@ -231,6 +289,25 @@ def _signal_posix_pids(pids: set[int], signum: int) -> bool:
     return complete
 
 
+def _signal_posix_group_or_child(process: subprocess.Popen[bytes], signum: int) -> bool:
+    """Signal the session group, falling back to the known direct child."""
+    try:
+        os.killpg(process.pid, signum)
+        return True
+    except ProcessLookupError:
+        return True
+    except PermissionError:
+        try:
+            os.kill(process.pid, signum)
+        except ProcessLookupError:
+            return True
+        except PermissionError:
+            return False
+        # The direct child was signalled, but descendants in its group remain
+        # unproven until token tracking observes their closure.
+        return False
+
+
 def _pid_exists(pid: int) -> bool:
     try:
         os.kill(pid, 0)
@@ -281,10 +358,7 @@ def close_process_tree(
         else:
             token_pids.update(observed)
 
-    try:
-        os.killpg(process.pid, signal.SIGTERM)
-    except ProcessLookupError:
-        pass
+    scan_complete = _signal_posix_group_or_child(process, signal.SIGTERM) and scan_complete
     scan_complete = _signal_posix_pids(token_pids, signal.SIGTERM) and scan_complete
     grace_deadline = time.monotonic() + 1.0
     while time.monotonic() < grace_deadline:
@@ -299,10 +373,7 @@ def close_process_tree(
         token_pids = {pid for pid in token_pids if _pid_exists(pid)}
         time.sleep(0.05)
     if _posix_group_exists(process.pid):
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        scan_complete = _signal_posix_group_or_child(process, signal.SIGKILL) and scan_complete
     scan_complete = _signal_posix_pids(token_pids, signal.SIGKILL) and scan_complete
     if process.poll() is None:
         try:
@@ -326,7 +397,7 @@ def close_process_tree(
     return scan_complete and not _posix_group_exists(process.pid) and not remaining_token_pids
 
 
-def atomic_json(path: Path, payload: dict[str, Any]) -> None:
+def atomic_json(path: Path, payload: dict[str, Any], *, create: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
@@ -335,7 +406,14 @@ def atomic_json(path: Path, payload: dict[str, Any]) -> None:
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, path)
+        if create:
+            try:
+                os.link(temporary, path)
+            except FileExistsError as exc:
+                raise FileExistsError(f"receipt path already exists: {path}") from exc
+            os.unlink(temporary)
+        else:
+            os.replace(temporary, path)
     except Exception:
         try:
             os.unlink(temporary)
@@ -356,17 +434,18 @@ def run(
 ) -> int:
     if not command or command[0] == "--":
         raise ValueError("a command is required after --")
+    validate_artifacts([ticket, stdout_path, stderr_path, receipt_path], protected_roots)
     cwd = cwd.resolve(strict=True)
     ticket = ticket.resolve(strict=True)
     if not cwd.is_dir() or not ticket.is_file():
         raise ValueError("cwd must be a directory and ticket must be a file")
     read_only_cwd_roots = read_only_cwd_roots or []
-    validate_artifacts([ticket, stdout_path, stderr_path, receipt_path], protected_roots)
     validate_cwd(cwd, protected_roots, read_only_cwd_roots)
     for path in (stdout_path, stderr_path, receipt_path):
-        if path.exists():
-            raise ValueError(f"evidence path already exists; use a fresh run path: {path}")
         path.parent.mkdir(parents=True, exist_ok=True)
+        _reject_artifact_symlink(path)
+
+    receipt_command = [redact_gateway_urls(value) for value in command]
 
     started = datetime.now(timezone.utc)
     monotonic_start = time.monotonic()
@@ -416,7 +495,7 @@ def run(
                             {
                                 "schema_version": 1,
                                 "status": "running",
-                                "command": command,
+                                "command": receipt_command,
                                 "cwd": str(cwd),
                                 "ticket": str(ticket),
                                 "stdout": str(stdout_path.resolve(strict=False)),
@@ -424,6 +503,7 @@ def run(
                                 "pid": pid,
                                 "started_at": started.isoformat(),
                             },
+                            create=True,
                         )
                     except OSError:
                         close_process_tree(
@@ -456,7 +536,7 @@ def run(
                         )
                         job_handle = None
     except OSError as exc:
-        error = f"worker process failed to start: {exc}"
+        error = redact_gateway_urls(f"worker process failed to start: {exc}")
         if process is not None:
             process_tree_closed = close_process_tree(
                 process, job_handle, terminate=True, process_token=process_token
@@ -465,10 +545,12 @@ def run(
             process_tree_closed = True
 
     ended = datetime.now(timezone.utc)
+    redact_gateway_artifact(stdout_path)
+    redact_gateway_artifact(stderr_path)
     receipt = {
         "schema_version": 1,
         "status": "terminal",
-        "command": command,
+        "command": receipt_command,
         "cwd": str(cwd),
         "ticket": str(ticket),
         "stdout": str(stdout_path.resolve(strict=False)),
@@ -510,7 +592,7 @@ def main() -> int:
             args.read_only_cwd_root,
         )
     except (OSError, ValueError) as exc:
-        print(f"CLI worker launch failed: {exc}", file=sys.stderr)
+        print(f"CLI worker launch failed: {redact_gateway_urls(str(exc))}", file=sys.stderr)
         return 1
 
 

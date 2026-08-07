@@ -7,6 +7,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "skills/sol-foreman/scripts/run_cli_worker.py"
@@ -130,6 +131,110 @@ class RunCliWorkerTests(unittest.TestCase):
                     root / "receipt",
                     [],
                 )
+
+    @unittest.skipIf(os.name == "nt", "symlink creation may require elevated Windows privileges")
+    def test_rejects_symlink_artifact_and_ticket_paths(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            ticket = root / "ticket.txt"
+            ticket.write_text("input\n", encoding="utf-8")
+            dangling = root / "dangling-output"
+            dangling.symlink_to(root / "outside-output")
+            with self.assertRaisesRegex(ValueError, "is a symlink"):
+                run_cli_worker.run(
+                    [sys.executable, "-c", "pass"], root, ticket,
+                    dangling, root / "stderr", root / "receipt", [],
+                )
+            ticket_link = root / "ticket-link.txt"
+            ticket_link.symlink_to(ticket)
+            with self.assertRaisesRegex(ValueError, "is a symlink"):
+                run_cli_worker.run(
+                    [sys.executable, "-c", "pass"], root, ticket_link,
+                    root / "stdout", root / "stderr", root / "receipt", [],
+                )
+
+    def test_rejects_nonregular_artifact_and_keeps_existing_file(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            ticket = root / "ticket.txt"
+            ticket.write_text("input\n", encoding="utf-8")
+            occupied = root / "occupied"
+            occupied.mkdir()
+            with self.assertRaisesRegex(ValueError, "not a regular file"):
+                run_cli_worker.run(
+                    [sys.executable, "-c", "pass"], root, ticket,
+                    occupied, root / "stderr", root / "receipt", [],
+                )
+            existing = root / "existing"
+            existing.write_text("preserve me\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "already exists"):
+                run_cli_worker.run(
+                    [sys.executable, "-c", "pass"], root, ticket,
+                    existing, root / "stderr", root / "receipt", [],
+                )
+            self.assertEqual(existing.read_text(encoding="utf-8"), "preserve me\n")
+
+    def test_receipt_redacts_gateway_url_in_command(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            ticket = root / "ticket.txt"
+            ticket.write_text("input\n", encoding="utf-8")
+            receipt = root / "receipt.json"
+            gateway = "https://token@gateway.example.invalid/v1"
+            code = run_cli_worker.run(
+                [sys.executable, "-c", "pass", gateway], root, ticket,
+                root / "stdout", root / "stderr", receipt, [],
+            )
+            serialized = receipt.read_text(encoding="utf-8")
+        self.assertEqual(code, 0)
+        self.assertNotIn(gateway, serialized)
+        self.assertIn("<redacted-gateway-url>", serialized)
+
+    def test_raw_artifacts_redact_gateway_urls_without_changing_other_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            ticket = root / "ticket.txt"
+            ticket.write_text("input\n", encoding="utf-8")
+            stdout = root / "stdout"
+            stderr = root / "stderr"
+            gateway = "https://token@gateway.example.invalid/v1"
+            child = (
+                "import sys; "
+                f"sys.stdout.write('before {gateway} after\\n'); "
+                f"sys.stderr.write('diagnostic {gateway}\\n')"
+            )
+            code = run_cli_worker.run(
+                [sys.executable, "-c", child], root, ticket,
+                stdout, stderr, root / "receipt", [],
+            )
+            stdout_text = stdout.read_text(encoding="utf-8")
+            stderr_text = stderr.read_text(encoding="utf-8")
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout_text, "before <redacted-gateway-url> after\n")
+        self.assertEqual(stderr_text, "diagnostic <redacted-gateway-url>\n")
+
+    def test_receipt_create_failure_kills_child_and_returns_nonzero(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            ticket = root / "ticket.txt"
+            ticket.write_text("input\n", encoding="utf-8")
+            receipt = root / "receipt.json"
+            original_atomic_json = run_cli_worker.atomic_json
+
+            def fail_initial_receipt(path, payload, *, create=False):
+                if create:
+                    raise OSError("simulated receipt write failure")
+                return original_atomic_json(path, payload, create=create)
+
+            with mock.patch.object(run_cli_worker, "atomic_json", side_effect=fail_initial_receipt):
+                code = run_cli_worker.run(
+                    [sys.executable, "-c", "import time; time.sleep(60)"], root, ticket,
+                    root / "stdout", root / "stderr", receipt, [],
+                )
+            payload = json.loads(receipt.read_text(encoding="utf-8"))
+        self.assertNotEqual(code, 0)
+        self.assertTrue(payload["process_tree_closed"])
+        self.assertIn("simulated receipt write failure", payload["error"])
 
     @unittest.skipIf(os.name == "nt", "POSIX process-group assertion")
     def test_closes_descendant_process_group_after_direct_child_exits(self):
