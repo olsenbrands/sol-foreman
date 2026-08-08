@@ -23,8 +23,7 @@ from typing import Any, Optional
 
 PROCESS_TOKEN_ENV = "SOL_FOREMAN_PROCESS_TOKEN"
 WINDOWS_CREATE_SUSPENDED = 0x00000004
-GATEWAY_URL = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
-GATEWAY_URL_BYTES = re.compile(rb"https?://[^\s\"'<>]+", re.IGNORECASE)
+DERIVED_METADATA_URL = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
 
 
 def within(path: Path, root: Path) -> bool:
@@ -41,33 +40,9 @@ class WorkerCancelled(Exception):
         self.signum = signum
 
 
-def redact_gateway_urls(value: str) -> str:
-    """Keep gateway endpoints out of durable receipts and launcher errors."""
-    return GATEWAY_URL.sub("<redacted-gateway-url>", value)
-
-
-def redact_gateway_artifact(path: Path) -> None:
-    """Replace endpoint URLs in final raw-stream artifacts without changing other bytes."""
-    if not path.exists():
-        return
-    _reject_artifact_symlink(path)
-    payload = path.read_bytes()
-    redacted = GATEWAY_URL_BYTES.sub(b"<redacted-gateway-url>", payload)
-    if redacted == payload:
-        return
-    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
-    try:
-        with os.fdopen(descriptor, "wb") as handle:
-            handle.write(redacted)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    except Exception:
-        try:
-            os.unlink(temporary)
-        except OSError:
-            pass
-        raise
+def redact_urls_from_derived_metadata(value: str) -> str:
+    """Redact every URL from launcher-generated metadata, never worker streams."""
+    return DERIVED_METADATA_URL.sub("<redacted-url>", value)
 
 
 def _reject_artifact_symlink(path: Path) -> None:
@@ -445,7 +420,7 @@ def run(
         path.parent.mkdir(parents=True, exist_ok=True)
         _reject_artifact_symlink(path)
 
-    receipt_command = [redact_gateway_urls(value) for value in command]
+    receipt_command = [redact_urls_from_derived_metadata(value) for value in command]
 
     started = datetime.now(timezone.utc)
     monotonic_start = time.monotonic()
@@ -536,7 +511,7 @@ def run(
                         )
                         job_handle = None
     except OSError as exc:
-        error = redact_gateway_urls(f"worker process failed to start: {exc}")
+        error = redact_urls_from_derived_metadata(f"worker process failed to start: {exc}")
         if process is not None:
             process_tree_closed = close_process_tree(
                 process, job_handle, terminate=True, process_token=process_token
@@ -545,8 +520,6 @@ def run(
             process_tree_closed = True
 
     ended = datetime.now(timezone.utc)
-    redact_gateway_artifact(stdout_path)
-    redact_gateway_artifact(stderr_path)
     receipt = {
         "schema_version": 1,
         "status": "terminal",
@@ -592,7 +565,10 @@ def main() -> int:
             args.read_only_cwd_root,
         )
     except (OSError, ValueError) as exc:
-        print(f"CLI worker launch failed: {redact_gateway_urls(str(exc))}", file=sys.stderr)
+        print(
+            f"CLI worker launch failed: {redact_urls_from_derived_metadata(str(exc))}",
+            file=sys.stderr,
+        )
         return 1
 
 

@@ -57,7 +57,7 @@ collection path before accepting the task.
 
 ## Portable launcher
 
-Use `scripts/run_cli_worker.py` for the required execution path. It passes the ticket over stdin without a shell, preserves stdout and stderr byte-for-byte except for mandatory gateway-URL redaction, records process identity/timing/exit status in an atomic JSON receipt, and works through `python3` or the Windows `py` launcher.
+Use `scripts/run_cli_worker.py` for the required execution path. It passes the ticket over stdin without a shell, preserves stdout and stderr byte-for-byte, records process identity/timing/exit status in an atomic JSON receipt, and works through `python3` or the Windows `py` launcher.
 
 Provide the worker command as arguments after `--`:
 
@@ -71,7 +71,7 @@ Provide the worker command as arguments after `--`:
 
 The line breaks are illustrative. Pass the same argument vector through the active process tool or on one line on any platform; do not copy shell continuation syntax into an incompatible shell. Use fresh evidence paths for every attempt; the launcher refuses overwrites. For blind verification, set `--cwd <candidate>`, add `--protected-root <source>` and `--protected-root <candidate>`, and add `--read-only-cwd-root <candidate>`. This permits the candidate as the explicitly read-only working tree while rejecting the protected source as `cwd`; all evidence still belongs outside both trees.
 
-Never place secrets in command arguments. The receipt intentionally records the argument vector, but gateway URLs are redacted from the receipt, launcher errors, and final stdout/stderr artifacts. It is written with `status: running` immediately after spawn through an atomic create that refuses an existing receipt, then atomically replaced with `status: terminal`, timing, exit data, cancellation status, and process-tree closure. On POSIX, the wrapper combines process-group closure with an inherited per-run token so it can find descendants that detach into another session; if the token scan is unavailable, closure is reported false. On Windows, the worker starts suspended, is assigned to a kill-on-close Job Object, and is then resumed, closing the pre-assignment spawn window; cancellation retains a task-tree fallback. Poll the raw stream, receipt, and wrapper process for long runs; do not accept a receipt whose `process_tree_closed` is not true.
+Never place secrets in command arguments. The receipt intentionally records the argument vector. For conservative privacy, its command and launcher-error metadata redact every `http(s)` URL, not merely gateway endpoints; that sanitizer never changes the worker's raw stdout or stderr artifacts. The receipt is written with `status: running` immediately after spawn through an atomic create that refuses an existing receipt, then atomically replaced with `status: terminal`, timing, exit data, cancellation status, and process-tree closure. On POSIX, the wrapper combines process-group closure with an inherited per-run token so it can find descendants that detach into another session; if the token scan is unavailable, closure is reported false. On Windows, the worker starts suspended, is assigned to a kill-on-close Job Object, and is then resumed, closing the pre-assignment spawn window; cancellation retains a task-tree fallback. Poll the raw stream, receipt, and wrapper process for long runs; do not accept a receipt whose `process_tree_closed` is not true.
 
 ## Harness-visible Claude CLI transport
 

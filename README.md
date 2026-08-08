@@ -24,8 +24,8 @@ operate safely:
   short calls or harnesses without native activity.
 - **Safer durable worker evidence.** The launcher refuses symlink/non-regular
   artifact entries and existing receipts, closes a child if initial receipt
-  tracking fails, and redacts gateway URLs from durable receipt and stream
-  artifacts.
+  tracking fails, redacts URLs from derived receipt/launcher-error metadata,
+  and retains raw worker streams byte-for-byte.
 - **Executable release discipline.** New setup and cross-family release
   runbooks make consent, availability, evidence, review, and release hygiene
   explicit gates instead of conventions.

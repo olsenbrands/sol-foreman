@@ -174,7 +174,7 @@ class RunCliWorkerTests(unittest.TestCase):
                 )
             self.assertEqual(existing.read_text(encoding="utf-8"), "preserve me\n")
 
-    def test_receipt_redacts_gateway_url_in_command(self):
+    def test_receipt_redacts_all_urls_from_derived_command_metadata(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             ticket = root / "ticket.txt"
@@ -188,9 +188,9 @@ class RunCliWorkerTests(unittest.TestCase):
             serialized = receipt.read_text(encoding="utf-8")
         self.assertEqual(code, 0)
         self.assertNotIn(gateway, serialized)
-        self.assertIn("<redacted-gateway-url>", serialized)
+        self.assertIn("<redacted-url>", serialized)
 
-    def test_raw_artifacts_redact_gateway_urls_without_changing_other_output(self):
+    def test_preserves_raw_urls_in_stream_artifacts(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             ticket = root / "ticket.txt"
@@ -210,8 +210,8 @@ class RunCliWorkerTests(unittest.TestCase):
             stdout_text = stdout.read_text(encoding="utf-8")
             stderr_text = stderr.read_text(encoding="utf-8")
         self.assertEqual(code, 0)
-        self.assertEqual(stdout_text, "before <redacted-gateway-url> after\n")
-        self.assertEqual(stderr_text, "diagnostic <redacted-gateway-url>\n")
+        self.assertEqual(stdout_text, f"before {gateway} after\n")
+        self.assertEqual(stderr_text, f"diagnostic {gateway}\n")
 
     def test_receipt_create_failure_kills_child_and_returns_nonzero(self):
         with tempfile.TemporaryDirectory() as temporary:

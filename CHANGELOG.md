@@ -28,8 +28,9 @@ program-control systems Sol Foreman already had.
 ### Changed
 
 - CLI receipts now create exclusively before the child continues, distinguish
-  existing evidence from an I/O failure, and redact gateway URLs from durable
-  receipt and final stream artifacts.
+  existing evidence from an I/O failure, and conservatively redact every
+  `http(s)` URL from derived receipt command/error metadata while retaining raw
+  worker stream artifacts byte-for-byte.
 - Artifact entries reject direct symlinks and non-regular files; denial of a
   POSIX process-group signal falls back to the known direct child and reports
   incomplete descendant closure honestly when needed.
