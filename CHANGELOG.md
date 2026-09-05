@@ -2,6 +2,47 @@
 
 All notable changes to Sol Foreman are documented here.
 
+## 0.4.0 - 2026-09-05
+
+The standalone Sol lead release. It replaces the legacy program-control package
+for new work with an outcome-focused workflow that keeps delivery, economics,
+and independent acceptance connected.
+
+### Added
+
+- A standalone Sol workflow for direct work, delegated changes, sprints,
+  recovery, and safe continuation across sessions.
+- Review reservation accounting through `review_guard.py`, including immutable
+  original outcome IDs, active-reservation protection, phase-specific rounds,
+  migration, and bounded higher-round decisions.
+- Routing guidance for Codex-only crews with optional Claude and Grok routes,
+  user preferences among qualified providers, and a non-negotiable review floor.
+- Explicit first-artifact, review, and original-outcome checkpoints that require
+  a lead decision rather than unlimited tracker activity.
+- A compatibility boundary for preserving old installations, active writers,
+  local patches, and legacy helper behavior during upgrades.
+
+### Changed
+
+- The public documentation now describes Sol in first person as a standalone
+  lead and gives tagged `v0.4.0` installation guidance plus the versioned source
+  archive layout.
+- Conditional tools retain the proven capability probe, CLI lifecycle wrapper,
+  candidate materialization, path policy, and tree fingerprint helpers.
+
+### Removed
+
+- The legacy JSON ticket preflight and program guard are not bundled for new
+  runs. Their history remains available through Git, and existing legacy runs
+  must remain on their recorded version until reconciled.
+
+### Important limits
+
+- The review guard bounds review reservations only. It does not enforce every
+  write set, observe all worker launches, or accept product outcomes.
+- Provider examples and routing guidance are starting hypotheses, not a claim
+  of universal provider reliability or entitlement.
+
 ## 0.3.0 - 2026-08-07
 
 The "trust the route, see the work" release. It brings the genuine, applicable
