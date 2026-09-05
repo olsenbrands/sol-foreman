@@ -1,4 +1,4 @@
 interface:
   display_name: "Sol Foreman"
-  short_description: "Route and verify work across Codex and Claude"
-  default_prompt: "Use $sol-foreman to plan, delegate, control, and independently verify this multi-agent task."
+  short_description: "Economical agent orchestration with accountable review"
+  default_prompt: "Use $sol-foreman to plan and coordinate this work with economical agents and evidence-backed acceptance."

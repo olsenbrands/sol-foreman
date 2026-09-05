@@ -1,233 +1,103 @@
-# Verification and acceptance
+# Proportionate independent verification
 
-Define proof before dispatch. Verification exists to test the user's goal, not to justify a worker's output.
+## Decide the verification boundary before building
 
-## Contents
+| Change | Required assurance |
+|---|---|
+| Pure formatting, comment, or inert copy change | Lead diff inspection and relevant cheap checks; self-reviewed is adequate |
+| Meaningful logic, architecture, or agent workflow | Focused behavioral checks plus one fresh independent review at the coherent change boundary |
+| Security boundary, money, migration, destructive behavior, subtle concurrency | Frontier independent review plus direct evidence of the relevant risk and recovery behavior |
 
-- [Write strong criteria](#write-strong-criteria)
-- [Map proof to criteria](#map-proof-to-criteria)
-- [Layer the checks](#layer-the-checks)
-- [Progressive program verification](#progressive-program-verification)
-- [Blind verification](#blind-verification)
-- [Hardened Claude blind verifier](#hardened-claude-blind-verifier)
-- [Mutation and quarantine backstop](#mutation-and-quarantine-backstop)
-- [Parent review](#parent-review)
-- [Disagreement](#disagreement)
-- [Fix loop](#fix-loop)
-- [Acceptance labels](#acceptance-labels)
+Do not classify executable configuration, a workflow skill, or authorization
+instructions as inert documentation just because the extension is Markdown/YAML.
+Batch tightly related low-risk edits under one review contract. Keep distinct
+high-risk ownership and proof boundaries. Every meaningful changed behavior
+must be covered; batching is not an exemption from independent review.
 
-## Write strong criteria
+For a substantial plan, request an independent challenge before broad implementation:
+missing user promises, architectural failure modes, critical dependencies, overlarge
+or fragmented tickets, absent proof, and credible cost traps. Do not require a
+panel or repeated approval for every routine plan adjustment.
 
-Make each criterion:
+## Reviewer contract
 
-- **Relevant:** directly supports the requested outcome.
-- **Observable:** produces a state, behavior, or artifact a reviewer can inspect.
-- **Independent:** can pass or fail without vague holistic judgment.
-- **Achievable:** fits the worker's tools, permissions, environment, and time.
-- **Scoped:** does not smuggle unrelated improvements into the task.
-- **Evidence-bound:** names the proof required.
+Give a fresh reviewer the original user request, product criteria, baseline and
+candidate identity, changed paths/diff, and allowed checks. Withhold builder claims,
+the lead's preferred verdict, prior reviewer conclusions, and repair narratives
+on its first independent pass. For a repair verification, it may receive the
+reproduction and affected criteria; label that as targeted re-verification.
 
-Weak: `The implementation is robust.`
+Ask it to derive the expected behavior first, inspect the implementation and
+adjacent interaction paths, then verify the criteria. Require for each finding:
+location, concrete trigger, violated promise, consequence, and reproduction or
+reasoning. Label facts `OBSERVED`, code implications `DERIVED`, and untested
+hypotheses `INFERRED`. Quotes and citations must resolve and support the claim.
 
-Strong:
+A consequential plausible inference needs bounded investigation. A minor
+unsupported preference is not a blocker. Neither reviewer confidence nor a
+provider name determines severity. The lead adjudicates from evidence.
 
-- `VC-1: A duplicate request with the same idempotency key creates one payment row; prove with focused test <path/test-name>.`
-- `VC-2: The production build command from CI exits 0.`
-- `VC-3: No file outside <write set> changes; prove with git diff --name-only <baseline>.`
+Have the reviewer state `PASS`, `FAIL`, or `INCOMPLETE`, criterion coverage, and
+limitations. PASS means the assigned contract is supported, not that the entire
+project is flawless. A missing required observation is INCOMPLETE, not a pass.
+Readable evidence takes precedence over an exact first-line spelling.
 
-When visual or interactive behavior matters, require a rendered or end-to-end check. Type checks are not substitutes for customer-path proof.
+## Candidate identity and independence
 
-## Map proof to criteria
+Freeze the review unit. Prefer a dedicated commit/worktree or isolated product
+snapshot. Record the baseline, complete diff (including untracked product files),
+candidate revision/content fingerprint, and dependencies. Keep prompts, logs, and
+review artifacts outside the candidate. Do not hide relevant untracked changes
+behind a clean tracked diff or assume ignored files are irrelevant.
 
-Use a table during final review:
+For a reviewer with tool access, restrict writes where possible and compare
+before/after product content. HEAD alone does not detect uncommitted mutation.
+Separate generated test/cache outputs from source. A source mutation invalidates
+the affected verdict; preserve the evidence, reconcile the mutation, and verify
+the resulting candidate. The reviewer must never silently become a fixer.
 
-| Criterion | Required proof | Worker evidence | Lead reproduction | Disposition |
-|---|---|---|---|---|
-| VC-1 | focused behavior test | artifact/path | command + result | PASS/FAIL |
+Fresh context is independence from builder reasoning, not proof of a different
+model or a secure sandbox. Same-model independent context is acceptable when it
+clears the task's bar; disclose the distinction. If independent review is unavailable,
+continue safe implementation/checks but label it SELF_REVIEWED or REVIEW PENDING.
+Do not report a required independent gate as passed or ship a risky change under
+reduced assurance without the user's authority.
+Where independence is required, accepted completion remains pending until a
+qualified fresh route checks it or the user explicitly accepts reduced assurance.
+Distinguish finished implementation and local checks from that remaining gate;
+an unavailable reviewer is not evidence the implementation failed.
 
-Missing proof is not a pass.
+## Economical proof sequence
 
-## Layer the checks
+1. Check ownership and the actual diff.
+2. Run focused deterministic behavior, static checks, and relevant negative cases.
+3. Review the coherent change independently; reproduce disputed claims.
+4. Repair all substantiated in-scope findings together. Check affected behavior
+   independently, with a wider boundary only when the impact analysis warrants it.
+5. At assembled milestones, run required repository gates and the user's actual
+   path: browser interaction, data read-back, or external observation as applicable.
 
-Run from cheapest and most deterministic to most judgment-heavy:
+Independent review may itself run the checks; the lead need not repeat every
+identical passing invocation. Deterministic failure outranks a model PASS.
+Record flaky results honestly and investigate them without an unbounded rerun loop.
 
-1. Scope and repository-state check.
-2. Formatting, static analysis, type check, and focused tests.
-3. The project's actual build or CI gate.
-4. Behavioral, visual, integration, or customer-path proof.
-5. Diff review against architecture, security, and regression risks.
-6. Blind independent verification.
+Reuse evidence only while its candidate inputs and relevant dependencies remain
+unchanged. Record what changed, which criteria depend on it, and why the rest is
+unaffected. Interface changes, shared test fixtures, migrations, or environment
+changes may invalidate much more than the changed lines.
 
-A deterministic failure outranks a model verdict.
+A full final check is for the assembled user outcome, not ceremonial re-review
+of every accepted slice. If the last independent review already covers the exact
+assembled candidate and all original criteria, reuse it instead of buying another.
 
-## Progressive program verification
+## Lead acceptance
 
-Match verification scope to candidate maturity:
+Reconcile every original promise to an evidence artifact and disposition. Review
+the diff and consequential findings yourself; reproduce the highest-risk or
+disputed observations when needed. Audit routing and process closure separately
+from product proof. Do not ask a blind product reviewer to certify hidden dispatch
+history. Close all writers and required reviews before final acceptance.
 
-1. At the early artifact checkpoint, inspect scope, architecture direction, and the smallest deterministic reproduction.
-2. At slice completion, run the slice's focused behavior and package gates and review its diff.
-3. At an integration seam, assemble accepted slices and run the boundary contract once.
-4. After the candidate is coherent, run full repository, customer-path, and blind-verifier gates.
-
-Do not repeatedly run the entire expensive suite on a slice that has not cleared its focused gate. Do not defer all review until dozens of slices have accumulated. A slice pass is provisional until the assembled candidate passes its original cross-slice criteria.
-
-## Blind verification
-
-Use a fresh agent or ephemeral CLI process. Give it only:
-
-- the original user request verbatim;
-- the lead-authored **product** criteria it can observe;
-- baseline and candidate identifiers;
-- changed product paths or product-only diff;
-- exact gates it must reproduce;
-- read-only constraints;
-- verdict format.
-
-Do not include:
-
-- builder reasoning;
-- builder summaries;
-- claimed results;
-- the lead's preferred conclusion;
-- suspected bugs unless the task is explicitly to reproduce them.
-
-Ask the verifier to derive its own understanding of correctness before reading the change.
-
-Cross-family verification is preferred when it adds real independence. Use Claude to verify Codex work or a fresh Codex seat to verify Claude work. Do not spend cross-family usage on pure formatting or documentation unless risk warrants it.
-
-Keep product verification separate from orchestration audit. A verifier that
-cannot inspect `.foreman` cannot verify dispatch, ticket ownership, model
-selection, process closure, builder rationale, or lead conclusions. Mark those
-criteria `NOT OBSERVABLE` for that verifier and give them to a separate
-auditor with an explicitly authorized audit package, or retain them for lead
-review. Do not mix them into the product verdict.
-
-## Hardened Claude blind verifier
-
-Use this as the default when Claude verifies a candidate. Run it from a fresh
-temporary run directory, never from the source repository. Before dispatch,
-run `claude --help` and `claude --version`; retain the help/version evidence
-with the run.
-
-1. Create a fresh `RUN_DIR` outside the source tree. Write a JSON array of
-   explicit product paths, then materialize `CANDIDATE` with
-   `scripts/materialize_candidate.py`. The script rejects absolute/traversing
-   paths, overlapping entries, metadata/cache paths, escaping intermediate or
-   final symlinks, and special files. It never copies `.git`, `.foreman`, or
-   runtime caches, including through case aliases, symlinks, Windows junctions,
-   or other resolved filesystem aliases; aliases outside source are rejected. For
-   identical cross-platform behavior it always dereferences a safe internal
-   symlink and records that transformation. Treat the candidate as reduced
-   fidelity; use another isolation method when symlink identity is a
-   product criterion. If an approved gate requires Git
-   metadata, initialize and commit a disposable candidate-only repository
-   after materialization; never expose source `.git`.
-2. Give Claude only `CANDIDATE`, a product-only ticket, the product-only diff,
-   and exact non-mutating gates. Do not give it the source-repository path.
-3. Write `{"mcpServers":{}}` to `RUN_DIR/empty-mcp.json`. Write all verifier
-   output outside `CANDIDATE`.
-4. Fingerprint both the source tree and `CANDIDATE` before dispatch with the
-   bundled `scripts/fingerprint_tree.py --manifest`. It covers every product
-   entry's relative path, type, mode, link target when applicable, and SHA-256
-   content hash for regular files. It excludes `.git`, `.foreman`, Python
-   bytecode, and common runtime caches at any depth by default but does not
-   omit other ignored, hidden, or untracked product files.
-5. Freeze both trees until their after-fingerprints are captured. Keep verifier
-   metadata, live ledger updates, streams, reports, caches, and temporary files
-   in `RUN_DIR`; copy approved evidence into the source tree only after the
-   comparisons finish.
-6. Substitute each `<exact-nonmutating-gate>` with a known read/test command.
-   Route its caches, reports, and temporary output to `RUN_DIR`; do not allow a
-   gate that writes in `CANDIDATE`.
-7. Fingerprint source and candidate before the run. Invoke Claude through
-   `scripts/run_cli_worker.py`. Set `--cwd <CANDIDATE>`, supply source and
-   candidate as `--protected-root`, and explicitly designate only candidate as
-   `--read-only-cwd-root <CANDIDATE>`. Keep the ticket, stream, stderr, and
-   receipt under `RUN_DIR`. The wrapper rejects source as a working directory,
-   closes the worker process tree, and records terminal closure. Use this
-   worker argument vector after `--`:
-
-    claude -p --model <verified-model-or-alias> --effort <level> --safe-mode --strict-mcp-config --mcp-config <empty-mcp.json> --no-chrome --disable-slash-commands --no-session-persistence --permission-mode dontAsk --tools Read,Grep,Glob,Bash --allowed-tools Read Grep Glob "Bash(git status --porcelain=v1 -uall)" "Bash(git diff --no-ext-diff --binary)" "Bash(rg <approved-pattern> <approved-path>)" "Bash(<exact-nonmutating-gate>)" --disallowed-tools Edit,Write --output-format stream-json --include-hook-events --verbose
-
-8. Record the wrapper receipt and compare source/candidate fingerprints after
-   the run. Preserve the raw stream separately from any human-readable report.
-   Do not replace, compact, or overwrite raw evidence.
-
-The portable wrapper avoids shell interpolation and pipelines. Create the
-temporary directory through the active platform's safe temporary-directory
-facility. Use `python3` on macOS/Linux and `py` when that is the available
-Windows launcher. Treat every Claude flag as version-discovered rather than a
-cross-version promise.
-
-The named Claude flags above are the current template, not a compatibility promise.
-If a named flag is unavailable, use `claude --help` to find an equivalent and
-record the discovered flag and version. Never guess or silently omit a
-protection. If no equivalent can disable ambient customization, restrict MCP
-to the empty config, disable Chrome and slash commands, deny edits/writes,
-prevent persistence, or preserve raw streaming evidence, return
-`NEEDS_CONTEXT` instead of issuing a blind verdict.
-
-## Mutation and quarantine backstop
-
-For a verifier that can execute shell commands:
-
-1. Compare both before/after fingerprints and retain the comparison result.
-   Also retain the raw stream and fail the run on a reported write attempt.
-2. Forbid edits, fixes, destructive git commands, deployment, production
-   access, and all paths outside `CANDIDATE` and `RUN_DIR`.
-3. Void the verdict on any source-tree or candidate fingerprint difference,
-   any reported write attempt, or an incomplete fingerprint. Do not retry the
-   verifier against the same surface.
-4. Preserve `RUN_DIR`, the raw stream, both fingerprints, and exit status for
-   diagnosis. If `CANDIDATE` changed, quarantine that isolated copy under
-   `RUN_DIR/quarantine/` with its evidence.
-5. Never automatically delete, clean, reset, or quarantine an artifact in the
-   user's source tree. Preserve unknown source-tree artifacts for diagnosis and
-   ask the owner to decide their disposition.
-
-Tool restrictions plus this check are defense in depth, not a perfect sandbox. Bash can write.
-
-## Parent review
-
-The lead must independently:
-
-1. Read the actual changed files or diff.
-2. Re-run the most important gates where practical.
-3. Audit the complete raw event stream, including denied tool requests and
-   discrepancies omitted from the report, then reconcile worker and verifier
-   evidence.
-4. Check every original requirement, including negative constraints.
-5. Confirm the verification criteria themselves remain reasonable.
-6. Decide acceptance.
-
-Do not outsource final judgment to the verifier.
-
-## Disagreement
-
-- If either reviewer reproduces a deterministic failure, treat the criterion as failed until explained.
-- For suspected flakiness, run at most three total characterization attempts. Inconsistent results remain a failure and the flake is a finding.
-- If a verifier identifies an out-of-scope observation, record it separately. Do not convert it into a hidden acceptance requirement.
-- If the worker and verifier disagree without reproducible proof, mark the criterion BLOCKED, not passed.
-
-## Fix loop
-
-When a criterion fails:
-
-1. Verify that the criterion tests the real goal and was stated correctly.
-2. Preserve the failure evidence.
-3. Give one fix worker the complete findings list and relevant evidence.
-4. Require the same full verification contract after the fix.
-5. Use a fresh verifier.
-
-Do not narrow the criteria after seeing a failure merely to make the work pass. Correct criteria only when they were genuinely irrelevant, impossible, ambiguous, or based on a false assumption; record why.
-
-## Acceptance labels
-
-Use:
-
-- **VERIFIED:** all required criteria have lead-reviewed evidence and required independent verification passed.
-- **SELF-REVIEWED:** criteria passed only through the lead's own review; disclose reduced assurance.
-- **NEEDS FIX:** one or more criteria failed and an in-scope correction path remains.
-- **BLOCKED:** completion requires user input, credentials, external state, unavailable capability, or an unresolved proof conflict.
-
-Never label partial evidence as verified.
+Use ACCEPTED only for the scope actually supported, SELF_REVIEWED when that is
+the assurance, NEEDS FIX for an in-scope defect, and BLOCKED for an actual missing
+external dependency or authority. Report review-pending work as unfinished.
