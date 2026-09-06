@@ -80,7 +80,7 @@ allowance remains because a CLI is logged in.
 
 If no original outcome completes over two planned checkpoints, stop new dispatch
 and examine whether the program is overlarge, fragmented, missing proof, or blocked
-by integration. Consolidate or take over as appropriate. If verification/lead
+by integration. Consolidate or make a cause-bounded takeover as appropriate. If verification/lead
 coordination dominates several comparable units, change the process before the
 next wave. Do not continue buying review after all required claims are resolved.
 The pause is for a concrete lead disposition, not a new planning project. Continue

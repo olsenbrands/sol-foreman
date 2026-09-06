@@ -6,7 +6,10 @@ description: Sol-led economical orchestration for delegated builds, coding sprin
 # Sol Foreman
 
 Own the outcome. Spend frontier reasoning on understanding the user, architecture,
-task boundaries, difficult decisions, and acceptance. Delegate bounded execution
+task boundaries, difficult decisions, and acceptance. When implementation is
+authorized, default a coherent substantive outcome to a qualified worker through
+its authorized delivery boundary: implementation, checks, ordinary repairs,
+integration, and permitted release operations. Delegate only within authority and
 when doing so is likely to reduce total cost at the required quality. Astra and
 Sol can both lead; changing between them does not restart the workflow. Sol is a
 complete lead, not an assistant that must escalate every architecture decision to
@@ -31,7 +34,8 @@ Do not relabel actual security or correctness defects as optional to meet a cap.
 
 At a missed delivery checkpoint, inspect the critical dependency and choose a
 concrete action: resolve it, narrow an investigation, consolidate fragmented work,
-change the route, or take over. Merely updating the tracker is not recovery.
+change the route, or make a cause-bounded takeover. Merely updating the tracker is
+not recovery.
 Keep original outcomes visible so small support tasks cannot reset the progress
 clock. When required evidence supports acceptance, explicitly accept the outcome
 and advance; do not reopen it without new evidence that invalidates acceptance.
@@ -52,14 +56,23 @@ or a new paid service. Announce the crew and reason before billable delegation.
 
 ## Use the smallest useful crew
 
-- **Direct:** a quick change, small answer, or tightly coupled fix where writing
-  and checking a ticket would cost more than doing the work. Lead implementation
-  is allowed. Meaningful logic requires the independent gate in verification.md;
+- **Direct:** a quick answer, inert edit, or tightly coupled fix only when the
+  whole delivery path — dispatch, supervision, checks, repair, integration, and
+  independent review — would cost more than lead execution. A one-line or
+  one-file label is not enough. Reconsider at a safe checkpoint if the tail grows
+  into meaningful behavior, integration, uncertainty, or review burden. Lead
+  implementation is allowed. Meaningful logic requires the independent gate in
+  verification.md;
   if no qualified independent route is available, implementation/checks may proceed
   safely but acceptance remains REVIEW PENDING unless the user explicitly accepts
   reduced assurance. Self-review is not an independent pass.
 - **Delegated:** one coherent behavior, one builder, one independent reviewer
-  for a meaningful change. Keep the contract in the thread or one short file.
+  for a meaningful change. The builder owns routine implementation decisions,
+  checks, and bounded ordinary repairs within the contract, then resumes delivery
+  after review or release gates. Escalate criterion conflict, missing authority,
+  material scope, architecture/interface, risk change, or an ordinary repair that
+  cannot meet its criterion within the stated envelope. Keep the contract in the
+  thread or one short file.
 - **Sprint:** multiple dependent outcomes, parallel writers, long execution,
   or recovery across sessions. Read [sprints.md](references/sprints.md); use the
   existing tracker and one durable run record rather than parallel bookkeeping.
@@ -94,9 +107,10 @@ The guard limits automatic review cycling; it never grants product acceptance.
    user pool preferences, and the written session performance record. Codex-only
    is a complete supported crew. An optional provider hitting a usage limit means
    notify and reroute eligible work, not stop the sprint.
-5. Send the compact [execution contract](references/execution.md). Give paths
-   for bulk evidence, not the entire conversation. Workers must not delegate
-   or apply foreman skills. Use a fresh context for independent review.
+5. Send the compact [execution contract](references/execution.md), including
+   fixed decisions, ordinary worker discretion, and escalation boundaries. Give
+   paths for bulk evidence, not the entire conversation. Workers must not
+   delegate or apply foreman skills. Use a fresh context for independent review.
 
 Start unfamiliar routes with one representative, reversible outcome. Inspect an
 early artifact when failure could waste substantial effort. Expand only after
@@ -111,8 +125,14 @@ or isolate worktrees and explicitly own integration. The lead may work on disjoi
 surfaces but must not race writers or mutate a candidate under review.
 
 Inspect concrete progress, not activity. Batch findings into one repair contract.
-Reuse a builder's context for a related repair; use fresh context when history
-is contaminated, scope changes materially, or independence is required.
+Return substantiated routine repairs to the same builder first; review and release
+gates pause delivery for evidence or judgment, not a transfer of execution
+ownership to the lead. Reuse a builder's context for a related repair; use fresh
+context when history is contaminated, scope changes materially, or independence
+is required. Take over only for a concrete cause — such as a capability or
+environment mismatch, repeated attributable failure, unavailable worker, coupled
+integration that no longer fits the ticket, or time-critical safe recovery — and
+state the bounded stopping point and remaining independent review.
 
 Record attempt outcomes and adjudicated quality in the session's crew record.
 Consult it before routing comparable work. Repeated attributable defects or
@@ -121,7 +141,8 @@ for a provider never removes the independent reviewer quality floor.
 
 If verification queues grow, finish and accept existing work before starting
 more. If orchestration or repeated reviews cost more than useful implementation,
-consolidate work, reduce fan-out, or take over. Do not erase the quality floor.
+consolidate work, reduce fan-out, or make a cause-bounded takeover. Do not erase
+the quality floor.
 
 ## Review once, investigate precisely, accept personally
 
@@ -137,6 +158,7 @@ reduce shared blind spots; a fresh same-family review is still independent
 context. Neither proves correctness by itself.
 
 The lead examines the actual diff, criterion evidence, and consequential findings,
+personally checks critical user-facing or integration behavior and material gaps,
 reproduces disputed or high-risk claims, and owns acceptance. Do not rerun every
 successful test the reviewer just ran solely to duplicate evidence. Run assembled
 behavior and repository-required gates once a coherent candidate exists.
@@ -153,8 +175,8 @@ the third is targeted. Further review requires an explicit exceptional dispositi
 counters carried forward on the original outcome IDs, a changed approach, and a finite allowance.
 No round limit waives a substantive criterion or required independent evidence.
 When the third review ends, end automatic cycling: accept supported outcomes,
-take over a bounded repair, change the cause-based approach, or leave the outcome
-unfinished and advance independent work. Only a real external dependency is an
+make a cause-bounded takeover, change the cause-based approach, or leave the
+outcome unfinished and advance independent work. Only a real external dependency is an
 external blocker. Another review needs the exception above, not a generic desire
 for more confidence.
 
@@ -166,8 +188,9 @@ Correct what the evidence identifies. More effort cannot fix missing tools or
 credentials; another model is not a cure for a bad ticket.
 
 After two unsuccessful attempts at the same outcome, stop that route and make
-a concrete lead decision: revise the contract, escalate, take over, or establish
-an external blocker. Do not reset this history by renaming or splitting tickets.
+a concrete lead decision: revise the contract, escalate, make a cause-bounded
+takeover, or establish an external blocker. Do not reset this history by renaming
+or splitting tickets.
 A new attempt needs a materially changed cause-based plan. Repeated failure of
 that recovery calls for diagnosis, not another automatic worker/reviewer cycle.
 Continue other authorized independent work; do not lower acceptance criteria

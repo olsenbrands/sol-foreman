@@ -8,11 +8,15 @@ Use only enough detail to make the assignment self-contained. Include:
 OUTCOME / ORIGINAL INTENT: user promise and original outcome ID, if tracked
 BASELINE / CONTEXT: repository or artifact identity; required instruction/source paths
 CRITERIA: observable behavior, negative constraints, and how each is checked
-DECISIONS: fixed interfaces/design; decisions left to the worker; relevant uncertainty
+DECISIONS: fixed architecture/interfaces; routine implementation decisions left to
+           the worker; relevant uncertainty and escalation boundary
 OWNERSHIP: exact worktree and permitted write paths; shared resources and dependencies
 ROUTE: requested model/effort, reason, evidence status, budget/checkpoint
-BOUNDARIES: authorized effects; no delegation, foreman skills, or unrelated changes
-STOP: scope conflict, material unknown, unavailable tool, or exceeded envelope;
+BOUNDARIES: authorized effects through checks, ordinary repair, integration, and
+            permitted release operations; no delegation, foreman skills, or unrelated changes
+STOP: criterion conflict, missing authority, material scope, architecture,
+      interface, or risk change, ordinary repair that cannot meet its criterion
+      within the stated envelope, unavailable tool, or exceeded envelope;
       return the evidence and partial state; do not improvise a broader task
 RETURN: result, changed paths, criterion evidence, exact checks and exits,
         remaining concerns, process/artifact identity, usage or unavailable
@@ -21,6 +25,10 @@ RETURN: result, changed paths, criterion evidence, exact checks and exits,
 Use `REPORTED`, `NEEDS_CONTEXT`, or `BLOCKED` as useful report labels; exact prose
 format is not a product acceptance gate. Preserve original criterion IDs through
 repairs. A scout may report facts and hypotheses but does not approve architecture.
+The worker owns routine execution through the authorized delivery boundary. A review
+or lead release gate pauses it for evidence or judgment; it does not make the lead
+the default repairer. Return a substantiated routine repair to the same builder
+first. A takeover needs a recorded concrete cause and bounded stopping point.
 Record the dispatch and later its result in the written session crew record
 described in [crew-control.md](crew-control.md), including for a small delegated
 assignment. This can be one short section of an existing run document.
@@ -80,7 +88,8 @@ Save raw events privately; summarize relevant excerpts without rewriting evidenc
 Record command (without secrets), cwd, start/end, exit, process/session identity,
 route evidence, and known descendant processes. Retain a handle to interrupt and
 collect it. A timeout or a killed parent does not prove descendants are terminal.
-If lifecycle control cannot be established, use native management or finish directly.
+If lifecycle control cannot be established, use native management or take over only
+with a concrete cause and bounded stopping point.
 
 For Claude review, discover controls such as safe mode, empty strict MCP config,
 no persistence, no Chrome, no slash commands, and read-only tools. For Grok,
