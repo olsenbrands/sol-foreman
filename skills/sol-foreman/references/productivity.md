@@ -27,8 +27,8 @@ defaults are operational heuristics, not model benchmarks or automatic timeouts:
 | Two missed agreed artifact checkpoints | Inspect tools/process and artifacts, request a bounded status response, then redirect or replace if no useful progress |
 | Two review rounds | Adjudicate all remaining findings before any further review |
 | Third review | Assign only named unresolved criteria and affected regressions, with an explicit stopping observation |
-| Third review ends | End automatic cycling and record acceptance, takeover/repair, approach change, or an actual blocker |
-| No original outcome accepted for roughly 45–60 minutes | Inspect the critical path, scope, verification overhead, and lead takeover option before dispatching more |
+| Third review ends | End automatic cycling and record acceptance, a cause-bounded takeover/repair, approach change, or an actual blocker |
+| No original outcome accepted for roughly 45–60 minutes | Inspect the critical path, scope, verification overhead, and any cause-bounded lead takeover option before dispatching more |
 
 Long tests, migrations, research, or large coherent outcomes can need longer
 milestones. Set justified alternatives before dispatch. If evidence later changes
@@ -39,9 +39,9 @@ tool/control boundaries; this skill cannot wake a suspended session autonomously
 
 When a checkpoint fails, choose a concrete action: narrow an overlarge behavior,
 consolidate fragmented tickets, repair the contract/environment, change the route,
-finish the coupled work directly, or establish an external blocker. Do not respond
-with another open-ended audit or generic replan. Keep previous writers terminal
-before replacement. Preserve accepted evidence and progress independent work.
+or make a bounded direct takeover for a stated cause. Do not respond with another
+open-ended audit or generic replan. Keep previous writers terminal before
+replacement. Preserve accepted evidence and progress independent work.
 
 ## Lead adjudication, not reviewer unanimity
 
@@ -60,8 +60,8 @@ not more votes. When all required criteria and independent gates have evidence,
 the lead accepts; unanimous reviewers and speculative perfection are unnecessary.
 
 After the ordinary review allowance, the lead still owns judgment. It may accept
-only when required evidence supports acceptance, take over a fix, change the
-approach, or mark the outcome unfinished while advancing independent work. An
+only when required evidence supports acceptance, make a cause-bounded takeover,
+change the approach, or mark the outcome unfinished while advancing independent work. An
 exceptional additional review may be warranted for changed implementation or
 unresolved material risk. State what changed and the exact question; do not reuse
 "quality assurance" as a perpetual override. Budget/round exhaustion never converts

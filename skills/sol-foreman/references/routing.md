@@ -101,7 +101,7 @@ incompatible accounting fields or count reasoning twice when included in output.
 
 At the first accepted outcome and each meaningful milestone, compare forecast
 with observed total cost. If review/coordination dominates, consolidate boundaries
-or take over; if repairs dominate, improve the contract or route upward. Do not
+or make a cause-bounded takeover; if repairs dominate, improve the contract or route upward. Do not
 estimate the remaining program from one unrepresentative task as if certain.
 
 Keep the written session crew record specified in [crew-control.md](crew-control.md).

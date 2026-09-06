@@ -93,8 +93,10 @@ assembled candidate and all original criteria, reuse it instead of buying anothe
 ## Lead acceptance
 
 Reconcile every original promise to an evidence artifact and disposition. Review
-the diff and consequential findings yourself; reproduce the highest-risk or
-disputed observations when needed. Audit routing and process closure separately
+the diff and consequential findings yourself; personally check critical
+user-facing or integration behavior, material gaps, and the highest-risk or
+disputed observations when needed. Do not duplicate every passing command solely
+because a worker or reviewer ran it. Audit routing and process closure separately
 from product proof. Do not ask a blind product reviewer to certify hidden dispatch
 history. Close all writers and required reviews before final acceptance.
 

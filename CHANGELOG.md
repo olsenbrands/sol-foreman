@@ -2,6 +2,32 @@
 
 All notable changes to Sol Foreman are documented here.
 
+## 0.4.1 - 2026-09-05
+
+### Changed
+
+- Qualified delegated workers now retain responsibility through their authorized
+  delivery boundary: implementation, checks, ordinary repairs, integration, and
+  permitted release operations. Review and release gates preserve lead judgment;
+  they do not make the lead the default repairer.
+- Execution contracts now distinguish fixed decisions from bounded ordinary
+  worker discretion and name the authority, scope, architecture, interface, risk,
+  and repair-envelope conditions that require escalation.
+- Direct work explicitly weighs the whole delivery path and is reconsidered when
+  a small-looking change grows a meaningful operational tail. Lead acceptance
+  explicitly includes critical assembled user-facing or integration behavior
+  without duplicating every passing command.
+- Takeover guidance now requires a concrete cause and bounded stopping point.
+  The existing two-attempt, cause-based recovery limit remains unchanged.
+- README setup references and the packaged skill version now target `v0.4.1`.
+
+### Important limits
+
+- A normal failing check is ordinary repair work inside the worker contract, not
+  a mandatory stop. Required criteria, independent assurance, authority limits,
+  provider restrictions, legacy-run controls, and review-count safeguards remain
+  binding.
+
 ## 0.4.0 - 2026-09-05
 
 The standalone Sol lead release. It replaces the legacy program-control package

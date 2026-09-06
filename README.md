@@ -14,6 +14,13 @@ I optimize for cost per accepted user outcome. Lead reasoning, worker time, tool
 use, repair, integration, review, and elapsed time all count. Cheap tokens,
 busy tickets, and model consensus are not delivery.
 
+## What I changed in v0.4.1
+
+I updated Sol Foreman so Sol can keep qualified workers responsible for
+implementation, checks, ordinary repairs, and authorized delivery. Sol still
+plans the work, ensures independent review, and personally verifies the assembled
+result before accepting it.
+
 ## What I changed in v0.4.0
 
 - I made the Sol workflow standalone for direct work, delegated changes, and
@@ -31,15 +38,19 @@ busy tickets, and model consensus are not delivery.
 
 - Define the requested behavior, negative constraints, and proof before work
   begins.
-- Use direct implementation when delegation would cost more than it saves.
-- Delegate one coherent behavior at a time, with ownership and a finite stop
-  condition.
+- Use direct implementation only when its whole delivery path costs less than
+  delegation, and reconsider if the operational tail grows.
+- Delegate one coherent behavior at a time. Qualified workers own ordinary
+  implementation decisions, checks, repairs, and authorized delivery inside the
+  contract; gates preserve lead judgment without making the lead the default
+  repairer.
 - Use the smallest qualified crew. Codex-only is supported; optional Claude and
   Grok capacity can extend, not replace, the required quality floor.
 - Keep independent review separate from builder claims. A reviewer does not
   accept the outcome and a green check is not a release claim.
 - On a missed checkpoint, inspect the critical dependency and choose a repair,
-  route change, consolidation, direct takeover, or real external blocker.
+  route change, consolidation, cause-bounded direct takeover, or real external
+  blocker.
 - Report evidence, remaining work, and the next gate separately from merge,
   deployment, and live acceptance when those stages apply.
 
@@ -50,10 +61,10 @@ busy tickets, and model consensus are not delivery.
 - Optional: authorized Codex, Claude, or Grok CLI routes when the task benefits
   from them. No optional provider is required.
 
-## Install v0.4.0
+## Install v0.4.1
 
 The canonical global destination is `~/.agents/skills/sol-foreman`. The
-recommended installer uses the immutable `v0.4.0` tag and refuses to overwrite
+recommended installer uses the immutable `v0.4.1` tag and refuses to overwrite
 that destination. First reconcile active work and local modifications under the
 [version-change guide](skills/sol-foreman/references/compatibility.md). A disk
 update does not replace instructions already loaded by an active session; start
@@ -61,21 +72,21 @@ a fresh session after a successful transition.
 
 Ask Codex:
 
-    Use $skill-installer to install https://github.com/olsenbrands/sol-foreman/tree/v0.4.0/skills/sol-foreman globally.
+    Use $skill-installer to install https://github.com/olsenbrands/sol-foreman/tree/v0.4.1/skills/sol-foreman globally.
 
 Or use Codex's built-in installer on macOS or Linux:
 
     python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/install-skill-from-github.py" \
       --repo olsenbrands/sol-foreman \
       --path skills/sol-foreman \
-      --ref v0.4.0 \
+      --ref v0.4.1 \
       --dest "$HOME/.agents/skills"
 
 On Windows:
 
-    py "%USERPROFILE%\.codex\skills\.system\skill-installer\scripts\install-skill-from-github.py" --repo olsenbrands/sol-foreman --path skills/sol-foreman --ref v0.4.0 --dest "%USERPROFILE%\.agents\skills"
+    py "%USERPROFILE%\.codex\skills\.system\skill-installer\scripts\install-skill-from-github.py" --repo olsenbrands/sol-foreman --path skills/sol-foreman --ref v0.4.1 --dest "%USERPROFILE%\.agents\skills"
 
-The release asset `sol-foreman-v0.4.0.zip` has the installable skill at
+The release asset `sol-foreman-v0.4.1.zip` has the installable skill at
 `sol-foreman/SKILL.md`. Use it to inspect or stage the tagged source before an
 upgrade; Codex's GitHub installer above is the supported installation path. Do
 not copy the archive over an active skill or a symlinked development checkout.
